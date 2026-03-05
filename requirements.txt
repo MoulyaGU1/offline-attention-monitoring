@@ -1,0 +1,4 @@
+pynput
+flask
+pywin32
+numpy

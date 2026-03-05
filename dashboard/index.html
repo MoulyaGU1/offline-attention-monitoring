@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Attention Mapping Dashboard</title>
+
+<link rel="stylesheet" href="styles/main.css">
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+</head>
+
+<body>
+
+<div class="container">
+
+<h1>🧠 Offline Attention Mapping Tool</h1>
+
+<div class="controls">
+
+<button id="startBtn">Start Session</button>
+<button id="endBtn">End Session</button>
+
+<div class="timer">
+Session Time: <span id="sessionTime">0</span>s
+</div>
+
+</div>
+
+<div class="stats">
+
+<div class="card">
+<h3>Keyboard</h3>
+<p id="keyboard">0</p>
+</div>
+
+<div class="card">
+<h3>Mouse Moves</h3>
+<p id="mouseMoves">0</p>
+</div>
+
+<div class="card">
+<h3>Clicks</h3>
+<p id="mouseClicks">0</p>
+</div>
+
+<div class="card">
+<h3>App Switches</h3>
+<p id="appSwitch">0</p>
+</div>
+
+</div>
+
+<div class="chart-container">
+
+<canvas id="attentionChart"></canvas>
+
+</div>
+
+<div class="patterns">
+
+<h3>Interaction Patterns</h3>
+
+<pre id="patterns"></pre>
+
+</div>
+
+</div>
+<link rel="stylesheet" href="/static/styles/main.css">
+
+
+
+<script src="scripts/dashboard.js"></script>
+<script src="scripts/charts.js"></script>
+
+</body>
+</html>
