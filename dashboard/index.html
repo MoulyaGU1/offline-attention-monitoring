@@ -1,77 +1,101 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>Attention Mapping Dashboard</title>
-
-<link rel="stylesheet" href="styles/main.css">
-
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Attention Mapping | Command Center</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles/main.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
-
 <body>
+    <nav class="security-nav">
+        <div class="status-indicator">
+            <div class="pulse-dot"></div>
+            <span id="offline-status"></span>
+        </div>
+        <div class="vault-info">
+            STORAGE: <span id="data-path">LOCAL_ENCRYPTED</span>
+        </div>
+    </nav>
 
-<div class="container">
+    <div class="app-container">
+        <header class="main-header">
+            <div class="brand">
+                <h1>ATTENTION<span>ENGINE</span></h1>
+                <p>NEURO-ADAPTIVE COGNITIVE MAPPING</p>
+            </div>
+            <div class="session-controls">
+                <div class="timer-display">
+                    <small>SESSION ACTIVE</small>
+                    <span id="sessionTime">00:00</span>
+                </div>
+                <button id="startBtn" class="btn-primary">START TRACKING</button>
+                <button id="endBtn" class="btn-secondary">END SESSION</button>
+            </div>
+        </header>
 
-<h1>🧠 Offline Attention Mapping Tool</h1>
+        <section class="dashboard-grid">
+            <div class="card highlight-card" id="stateCard">
+                <div class="card-header">NEURO-STATE</div>
+                <h2 id="focusState">CALIBRATING</h2>
+                <div class="progress-container">
+                    <div id="intensityFill" class="progress-bar"></div>
+                </div>
+                <div class="card-footer">Intensity Ratio: <span id="intensityRatio">1.0</span>x</div>
+            </div>
 
-<div class="controls">
+            <div class="card">
+                <div class="card-header">KEYBOARD</div>
+                <h2 id="keyboard">0</h2>
+                <div class="card-footer">Tabs Detected: <span id="tabCount">0</span></div>
+            </div>
 
-<button id="startBtn">Start Session</button>
-<button id="endBtn">End Session</button>
+            <div class="card">
+                <div class="card-header">INTERACTIONS</div>
+                <h2 id="mouseClicks">0</h2>
+                <div class="card-footer">Total Mouse Clicks</div>
+            </div>
 
-<div class="timer">
-Session Time: <span id="sessionTime">0</span>s
-</div>
+            <div class="card">
+                <div class="card-header">CONTEXT & FLOW</div>
+                <h2 id="appSwitch">0</h2>
+                <div class="card-footer">
+                    App Jumps: <span id="appSwitchVal">0</span> | 
+                    Alt+Tabs: <span id="tabSwitch">0</span>
+                </div>
+            </div>
 
-</div>
+            <div class="card">
+                <div class="card-header">PHYSICAL PATH</div>
+                <h2 id="mouseMoves">0</h2>
+                <div class="card-footer">Pixels Traversed</div>
+            </div>
+        </section>
 
-<div class="stats">
+        <section class="viz-grid">
+            <div class="card chart-area">
+                <div class="card-header">ATTENTION TOPOLOGY (REAL-TIME)</div>
+                <div class="canvas-wrapper">
+                    <canvas id="attentionChart"></canvas>
+                </div>
+            </div>
+            <div class="card gravity-area">
+                <div class="card-header">ATTENTION GRAVITY MAP</div>
+                <div id="gravity-list" class="gravity-stack">
+                    </div>
+            </div>
+        </section>
 
-<div class="card">
-<h3>Keyboard</h3>
-<p id="keyboard">0</p>
-</div>
+        <footer class="system-footer">
+            <div class="card log-card">
+                <div class="card-header">COGNITIVE EVENT LOG</div>
+                <pre id="patterns">Initializing system sensors...</pre>
+            </div>
+        </footer>
+    </div>
 
-<div class="card">
-<h3>Mouse Moves</h3>
-<p id="mouseMoves">0</p>
-</div>
-
-<div class="card">
-<h3>Clicks</h3>
-<p id="mouseClicks">0</p>
-</div>
-
-<div class="card">
-<h3>App Switches</h3>
-<p id="appSwitch">0</p>
-</div>
-
-</div>
-
-<div class="chart-container">
-
-<canvas id="attentionChart"></canvas>
-
-</div>
-
-<div class="patterns">
-
-<h3>Interaction Patterns</h3>
-
-<pre id="patterns"></pre>
-
-</div>
-
-</div>
-<link rel="stylesheet" href="/static/styles/main.css">
-
-
-
-<script src="scripts/dashboard.js"></script>
-<script src="scripts/charts.js"></script>
-
+    <script src="{{ url_for('static', filename='scripts/dashboard.js') }}"></script>
+    <script src="{{ url_for('static', filename='scripts/charts.js') }}"></script>
 </body>
 </html>

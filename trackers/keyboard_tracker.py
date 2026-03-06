@@ -45,3 +45,17 @@ class KeyboardTracker:
             except RuntimeError:
                 pass
             self.logger.info("KeyboardTracker stopped.")
+    # In your KeyboardTracker
+def on_press(self, key):
+    try:
+        key_name = key.char # normal keys
+    except AttributeError:
+        key_name = str(key) # special keys like Key.tab, Key.enter
+
+    event = {
+        "event_type": "keyboard",
+        "key": key_name,
+        "timestamp": datetime.now(),
+        "app_name": self.get_active_app() 
+    }
+    self.event_bus.emit("keyboard", event)

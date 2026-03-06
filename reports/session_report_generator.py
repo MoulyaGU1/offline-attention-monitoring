@@ -1,32 +1,23 @@
-from analyzers.interaction_analyzer import InteractionAnalyzer
+import datetime
 
 class ReportGenerator:
-    def __init__(self):
-        self.analyzer = InteractionAnalyzer()
-
     def generate(self, events):
-        """
-        Processes a list of events into a structured metrics dictionary.
-        """
-        if not events:
-            return {
-                "keyboard_events": 0,
-                "mouse_clicks": 0,
-                "mouse_moves": 0,
-                "app_switches": 0
-            }
+        # Helper to get values from either an Object or a Dict
+        def get_val(obj, key):
+            if isinstance(obj, dict):
+                return obj.get(key)
+            return getattr(obj, key, None)
 
-        # The analyzer now handles both object and dict formats safely
-        metrics = self.analyzer.analyze(events)
+        # Count events safely
+        kb = sum(1 for e in events if get_val(e, 'event_type') == 'keyboard')
+        tabs = sum(1 for e in events if get_val(e, 'event_type') == 'tab_switch')
+        m_clicks = sum(1 for e in events if get_val(e, 'event_type') == 'mouse_click')
+        m_moves = sum(1 for e in events if get_val(e, 'event_type') == 'mouse_move')
 
-        # Assuming metrics is a Metrics object with a to_dict() method
-        try:
-            return metrics.to_dict()
-        except AttributeError:
-            # Fallback if to_dict() isn't implemented in your Metrics model
-            return {
-                "keyboard_events": metrics.keyboard_events,
-                "mouse_clicks": metrics.mouse_clicks,
-                "mouse_moves": metrics.mouse_moves,
-                "app_switches": metrics.app_switches
-            }
+        return {
+            "keyboard": kb,
+            "tab_switches": tabs,
+            "mouse_clicks": m_clicks,
+            "mouse_moves": m_moves,
+            "total_events": len(events)
+        }

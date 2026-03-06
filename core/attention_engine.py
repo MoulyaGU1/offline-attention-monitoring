@@ -1,50 +1,55 @@
 from collections import defaultdict
 from datetime import datetime
 from threading import Lock
+import statistics
 
 class AttentionEngine:
-    """
-    Core engine that processes interaction signals
-    and builds a real-time attention timeline.
-    """
-
     def __init__(self, event_bus):
         self.event_bus = event_bus
         self.timeline = defaultdict(int)
         self.lock = Lock()
+        self.resolution_seconds = 5  
+        self.history_buffer = [] 
 
-        # subscribe to interaction events
-        self.event_bus.subscribe("keyboard", self.process_event)
-        self.event_bus.subscribe("mouse_move", self.process_event)
-        self.event_bus.subscribe("mouse_click", self.process_event)
-        self.event_bus.subscribe("scroll", self.process_event)
-        self.event_bus.subscribe("app_switch", self.process_event)
+        topics = ["keyboard", "mouse_move", "mouse_click", "scroll", "app_switch"]
+        for topic in topics:
+            self.event_bus.subscribe(topic, self.process_event)
 
     def process_event(self, event):
-        """Processes events and buckets them by the minute."""
-        # 1. Safe extraction of timestamp (Handle Dict or Object)
-        if isinstance(event, dict):
-            ts = event.get('timestamp')
-        else:
-            ts = getattr(event, 'timestamp', None)
-
-        # 2. Fallback to current time if timestamp is missing or invalid
-        if not isinstance(ts, datetime):
-            ts = datetime.now()
-
-        # 3. Create the minute bucket
-        minute_bucket = ts.replace(second=0, microsecond=0)
+        ts = event.get('timestamp') if isinstance(event, dict) else getattr(event, 'timestamp', datetime.now())
+        sec_rounded = (ts.second // self.resolution_seconds) * self.resolution_seconds
+        time_bucket = ts.replace(second=sec_rounded, microsecond=0)
 
         with self.lock:
-            self.timeline[minute_bucket] += 1
+            self.timeline[time_bucket] += 1
+            if time_bucket not in self.history_buffer:
+                self.history_buffer.append(time_bucket)
+                if len(self.history_buffer) > 50: self.history_buffer.pop(0)
 
+    # THIS IS THE MISSING METHOD THAT CAUSED THE ERROR
     def get_attention_timeline(self):
         with self.lock:
-            # Sort by time so the timeline makes sense when printed
-            return dict(sorted(self.timeline.items()))
+            # Convert datetime keys to strings so JSON can handle them
+            return {k.strftime('%H:%M:%S'): v for k, v in sorted(self.timeline.items())}
 
-    def get_current_attention_score(self):
-        """Returns attention intensity of the current minute."""
-        now = datetime.now().replace(second=0, microsecond=0)
+    def get_adaptive_metrics(self):
         with self.lock:
-            return self.timeline.get(now, 0)
+            if not self.timeline:
+                return {"state": "Calibrating", "intensity_ratio": 1.0}
+            
+            recent_values = [self.timeline[pb] for pb in self.history_buffer]
+            avg_intensity = statistics.mean(recent_values) if recent_values else 0
+            
+            now = datetime.now()
+            sec_rounded = (now.second // self.resolution_seconds) * self.resolution_seconds
+            current_bucket = now.replace(second=sec_rounded, microsecond=0)
+            current_val = self.timeline.get(current_bucket, 0)
+            
+            ratio = current_val / avg_intensity if avg_intensity > 0 else 1.0
+            state = "Deep Flow" if ratio > 1.2 else "Stable" if ratio > 0.6 else "Reflective"
+            
+            return {"state": state, "intensity_ratio": round(ratio, 2)}
+    def get_gravity_data(self, events):
+        """Helper to call GravityModel from within the engine."""
+        from analyzers.gravity_model import GravityModel
+        return GravityModel().calculate_gravity(events)

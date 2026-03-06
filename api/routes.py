@@ -1,13 +1,23 @@
-from flask import render_template, jsonify
+from flask import jsonify, render_template
 
 def register_routes(app, orchestrator):
     @app.route("/")
     def index():
-        # Ensure there is NO "Attention Mapping Backend Running" string here
         return render_template("index.html")
+
+    @app.route("/start-session", methods=["POST"])
+    def start():
+        # THIS TRIGGERS THE HARDWARE LISTENERS
+        return jsonify(orchestrator.start_session())
 
     @app.route("/status")
     def status():
+        # THIS PUSHES THE DATA TO THE WEBSITE
         return jsonify(orchestrator.get_realtime_status())
-    
-    # ... start/end routes ...
+    # File: api/routes.py
+
+    @app.route("/end-session", methods=["POST"])
+    def end():
+    # This triggers the 'stop' command for all hardware trackers
+       report = orchestrator.end_session() 
+       return jsonify(report)
