@@ -25,23 +25,23 @@ class AppTracker:
             try:
                 current_app = self.get_active_app()
 
-                # Only trigger event if the window actually changed
                 if current_app and current_app != self.last_app:
+                    # FIX: Changed datetime.datetime.now() to datetime.now()
                     event = InteractionEvent(
                         event_type="app_switch",
-                        timestamp=datetime.now(),
+                        timestamp=datetime.now(), 
+                        app_name=current_app,
                         metadata={"app": current_app, "previous_app": self.last_app}
                     )
 
-                    # Update the bus with the new switch
                     self.event_bus.publish("app_switch", event)
                     self.last_app = current_app
 
-                time.sleep(1) # Check once per second
+                time.sleep(1) 
             except Exception as e:
+                # This is where your current error is being caught
                 self.logger.error(f"AppTracker polling error: {e}")
                 time.sleep(1)
-
     def start(self):
         """Sets the running flag and captures the initial active app."""
         self.running = True

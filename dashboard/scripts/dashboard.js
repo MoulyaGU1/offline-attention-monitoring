@@ -5,66 +5,47 @@ let timerInterval = null;
  * THE MASTER HEARTBEAT: Updates data and network status
  */
 async function updateDashboard() {
-
     try {
-
         const response = await fetch('/status');
-
         const data = await response.json();
 
-
-
         if (data.status === 'active') {
-
             // 1. Timer
-
             const totalSeconds = Math.floor(data.duration || 0);
-
             const mins = Math.floor(totalSeconds / 60).toString().padStart(2, '0');
-
             const secs = Math.floor(totalSeconds % 60).toString().padStart(2, '0');
-
             document.getElementById('sessionTime').innerText = `${mins}:${secs}`;
 
-
-
             // 2. Hardware Stats
-
             document.getElementById('keyboard').innerText = data.keyboard_events || 0;
-
             document.getElementById('mouseClicks').innerText = data.mouse_clicks || 0;
-
             document.getElementById('mouseMoves').innerText = Math.floor(data.mouse_moves || 0).toLocaleString();
 
-           
+            // 3. Separate Card: App Jumps & Alt+Tabs
+            const appVal = document.getElementById('appSwitchVal');
+            const tabVal = document.getElementById('tabSwitchVal');
+            
+            if (appVal) appVal.innerText = data.app_switches || 0;
+            if (tabVal) tabVal.innerText = data.tab_switches || 0;
 
-            // 3. Topology & Gravity
+            // 4. Topology (Graph) & Gravity (Bars)
+            if (window.updateChart && data.timeline) {
+                // DEBUG: If your graph is blank, check if this appears in Console (F12)
+                console.log("Pushing to Topology:", data.timeline); 
+                updateChart(data.timeline);
+            }
+            
+            if (window.updateGravityMap && data.gravity_map) {
+                updateGravityMap(data.gravity_map);
+            }
 
-            if (window.updateChart && data.timeline) updateChart(data.timeline);
-
-            if (window.updateGravityMap && data.gravity_map) updateGravityMap(data.gravity_map);
-
-           
-
-            // 4. Neuro-State
-
+            // 5. Neuro-State
             document.getElementById('focusState').innerText = (data.state || "STABLE").toUpperCase();
-
         }
-
     } catch (err) {
-
-        // We do nothing here now—no more red "Connection Lost" banner.
-
         console.log("Waiting for backend...");
-
     }
-
-}
-/**
- * TRUTHFUL NETWORK DETECTION: Only checks Wi-Fi/Ethernet status
- */
-function updateNetworkStatus() {
+}function updateNetworkStatus() {
     const dot = document.querySelector('.status-dot');
     const text = document.getElementById('offline-status');
 
@@ -84,22 +65,23 @@ function updateNetworkStatus() {
  */
 function updateGravityMap(gravityData) {
     const container = document.getElementById('gravity-list');
-    if (!container || !gravityData || Object.keys(gravityData).length === 0) return;
+    if (!container) return;
 
-    container.innerHTML = ''; 
+    container.innerHTML = ''; // Clear old bars
+
+    // Convert to array and sort by most used app
     const sortedApps = Object.entries(gravityData).sort((a, b) => b[1] - a[1]);
 
-    sortedApps.forEach(([appName, score]) => {
-        const percentage = Math.min(score * 50, 100); 
+    sortedApps.forEach(([app, count]) => {
         const item = document.createElement('div');
-        item.className = 'gravity-item';
+        item.style.marginBottom = "10px";
         item.innerHTML = `
-            <div class="gravity-label">
-                <span>${appName}</span>
-                <span>${percentage.toFixed(0)}%</span>
+            <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                <small>${app}</small>
+                <small>${count}</small>
             </div>
-            <div class="gravity-bar-bg">
-                <div class="gravity-bar-fill" style="width: ${percentage}%"></div>
+            <div style="height:4px; background:rgba(255,255,255,0.1); border-radius:2px;">
+                <div style="height:100%; width:${Math.min(count * 5, 100)}%; background:#00ff88; box-shadow: 0 0 10px #00ff88;"></div>
             </div>
         `;
         container.appendChild(item);
@@ -141,3 +123,29 @@ document.getElementById('endBtn').addEventListener('click', endSession);
 
 // Run network check immediately on load
 updateNetworkStatus();
+// Inside your updateDashboard loop:
+if (data.status === 'active') {
+    // 1. Draw the Topology Line
+    if (window.updateChart && data.timeline) {
+        updateChart(data.timeline);
+    }
+    
+    // 2. Draw the Gravity Bars
+    if (window.updateGravityMap && data.gravity_map) {
+        updateGravityMap(data.gravity_map);
+    }
+}
+document.getElementById('endBtn').addEventListener('click', async () => {
+    const response = await fetch('/end_session', { method: 'POST' });
+    const result = await response.json();
+    
+    if (result.status === 'stored') {
+        alert(`Session Saved! Duration: ${Math.floor(result.duration)}s`);
+        // Optional: Redirect to a history page
+        window.location.reload(); 
+    }
+});
+function toggleMenu() {
+    const menu = document.getElementById("sideMenu");
+    menu.classList.toggle("open");
+}

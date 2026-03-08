@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Attention Mapping | History</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles/main.css') }}">
+    <style>
+        .history-table { width: 100%; border-collapse: collapse; margin-top: 30px; }
+        .history-table th, .history-table td { padding: 15px; text-align: left; border-bottom: 1px solid #222; }
+        .history-table th { color: #00ff88; font-weight: 800; }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <header class="main-header">
+            <div class="brand">
+                <h1>SESSION<span>HISTORY</span></h1>
+                <p>LOCAL DATA REPOSITORY</p>
+            </div>
+            <button class="btn-secondary" onclick="window.location.href='/'">BACK TO LIVE</button>
+        </header>
+
+        <section class="card">
+            <table class="history-table">
+                <thead>
+                    <tr>
+                        <th>Date & Time</th>
+                        <th>Duration (s)</th>
+                        <th>App Jumps</th>
+                        <th>Primary Focus</th>
+                        <th>Avg Intensity</th>
+                    </tr>
+                </thead>
+                <tbody id="historyBody">
+                    </tbody>
+            </table>
+        </section>
+    </div>
+
+    <script>
+        // Load data on page open
+        async function loadHistory() {
+            const response = await fetch('/api/history');
+            const data = await response.json();
+            const body = document.getElementById('historyBody');
+            
+            body.innerHTML = data.map(row => `
+                <tr>
+                    <td>${row[0].replace('T', ' ')}</td>
+                    <td>${Math.floor(row[1])}s</td>
+                    <td>${row[2]}</td>
+                    <td>${row[3]}</td>
+                    <td>${row[4].toFixed(2)}x</td>
+                </tr>
+            `).join('');
+        }
+        loadHistory();
+    </script>
+</body>
+</html>

@@ -1,23 +1,40 @@
 from flask import jsonify, render_template
+import sqlite3
 
 def register_routes(app, orchestrator):
     @app.route("/")
     def index():
         return render_template("index.html")
 
+    @app.route("/history")
+    def history_page():
+        # Renders the history viewing page
+        return render_template("history.html")
+
+    @app.route("/api/history")
+    def get_history():
+        # Fixed indentation for database access
+        conn = sqlite3.connect('attention_history.db')
+        cursor = conn.cursor()
+        # Fetching latest sessions from local storage
+        cursor.execute('''
+            SELECT start_time, duration, app_jumps, top_app, average_intensity 
+            FROM session_history ORDER BY id DESC LIMIT 20
+        ''')
+        rows = cursor.fetchall()
+        conn.close()
+        return jsonify(rows)
+
     @app.route("/start-session", methods=["POST"])
     def start():
-        # THIS TRIGGERS THE HARDWARE LISTENERS
         return jsonify(orchestrator.start_session())
 
     @app.route("/status")
     def status():
-        # THIS PUSHES THE DATA TO THE WEBSITE
         return jsonify(orchestrator.get_realtime_status())
-    # File: api/routes.py
 
     @app.route("/end-session", methods=["POST"])
     def end():
-    # This triggers the 'stop' command for all hardware trackers
-       report = orchestrator.end_session() 
-       return jsonify(report)
+        # Triggers data storage logic in the orchestrator
+        report = orchestrator.end_session() 
+        return jsonify(report)

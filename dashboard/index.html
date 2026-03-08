@@ -9,15 +9,31 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
-    <nav class="security-nav">
-        <div class="status-indicator">
-            <div class="pulse-dot"></div>
-            <span id="offline-status"></span>
-        </div>
-        <div class="vault-info">
-            STORAGE: <span id="data-path">LOCAL_ENCRYPTED</span>
-        </div>
-    </nav>
+    
+    <div id="sideMenu" class="side-menu">
+    <a href="javascript:void(0)" class="closebtn" onclick="toggleMenu()">&times;</a>
+    <div class="menu-content">
+        <h2 style="color: #00ff88; margin-bottom: 30px;">SYSTEM MENU</h2>
+        <button class="menu-btn" onclick="window.location.href='/history'">
+            📊 VIEW SESSION HISTORY
+        </button>
+        <button class="menu-btn" onclick="toggleMenu()">
+            🏠 RETURN TO DASHBOARD
+        </button>
+    </div>
+</div>
+
+<nav class="security-nav">
+    <div class="hamburger" onclick="toggleMenu()">
+        <span></span>
+        <span></span>
+        <span></span>
+    </div>
+    <div class="status-indicator">
+        <div class="pulse-dot"></div>
+        <span id="offline-status">LOCAL NODE: ONLINE (SYNCED)</span>
+    </div>
+</nav>
 
     <div class="app-container">
         <header class="main-header">
@@ -57,14 +73,20 @@
                 <div class="card-footer">Total Mouse Clicks</div>
             </div>
 
-            <div class="card">
-                <div class="card-header">CONTEXT & FLOW</div>
-                <h2 id="appSwitch">0</h2>
-                <div class="card-footer">
-                    App Jumps: <span id="appSwitchVal">0</span> | 
-                    Alt+Tabs: <span id="tabSwitch">0</span>
-                </div>
-            </div>
+            <div class="card context-card">
+    <div class="card-header">COGNITIVE SWITCHES</div>
+    <div class="stat-group">
+        <div class="stat-box">
+            
+            <h2 id="appSwitchVal">0</h2>
+        </div>
+        
+        <div class="stat-box">
+            
+        </div>
+    </div>
+    <div class="card-footer">Context Flow Monitoring</div>
+</div>
 
             <div class="card">
                 <div class="card-header">PHYSICAL PATH</div>

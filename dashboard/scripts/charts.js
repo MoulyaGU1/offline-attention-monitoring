@@ -47,19 +47,29 @@ let attentionChart = new Chart(ctx, {
 /**
  * Updates the chart using a sliding window logic
  */
+/**
+ * Updates the chart using a sliding window logic.
+ * Handles both "2026-03-08 17:31:05" and "17:31:05" formats.
+ */
+/**
+ * Updates the topology chart using a sliding window.
+ * Handles both "ISO Date Time" and "HH:MM:SS" formats safely.
+ */
 function updateChart(timeline) {
     if (!timeline || Object.keys(timeline).length === 0) return;
 
-    // Convert Dictionary to Arrays and extract HH:MM:SS
-    const allLabels = Object.keys(timeline).map(t => t.split(' ')[1]); 
-    const allValues = Object.values(timeline);
+    // Safe Label Extraction: handles "2026-03-08 17:42:01" vs "17:42:01"
+    const labels = Object.keys(timeline).map(t => {
+        return t.includes(' ') ? t.split(' ')[1] : t;
+    }); 
+    
+    const values = Object.values(timeline);
 
-    // SLIDING WINDOW: Only show the last 50 data points
-    const windowSize = 50;
-    const labels = allLabels.slice(-windowSize);
-    const values = allValues.slice(-windowSize);
+    // Only show the last 35 points to keep the waveform clear
+    const windowSize = 35;
+    attentionChart.data.labels = labels.slice(-windowSize);
+    attentionChart.data.datasets[0].data = values.slice(-windowSize);
 
-    attentionChart.data.labels = labels;
-    attentionChart.data.datasets[0].data = values;
+    // Update with 'none' to skip internal re-calculations for speed
     attentionChart.update('none'); 
 }

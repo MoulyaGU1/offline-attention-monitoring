@@ -15,6 +15,9 @@ from analyzers.stability_analyzer import StabilityAnalyzer
 from reports.session_report_generator import ReportGenerator
 from analyzers.gravity_model import GravityModel
 from core.offline_validator import OfflineValidator
+# Should be exactly this:
+from core.attention_engine import AttentionEngine
+import sqlite3
 
 class SessionOrchestrator:
     def __init__(self):
@@ -50,38 +53,63 @@ class SessionOrchestrator:
         self.event_bus.subscribe("app_switch", self.capture_event)
 
     def capture_event(self, event):
-        """Processes hardware events, calculates pixel path, and detects Alt+Tab cycling."""
+        """
+        Unified Event Processor: 
+        Handles metadata extraction, Physical Path (Pixels), Alt+Tab switching, 
+        and Dashboard filtering.
+        """
         if not self.session_active:
             return
 
-        # Safe extraction for Objects or Dicts
-        e_type = getattr(event, 'event_type', None) or (event.get('event_type') if isinstance(event, dict) else None)
-        e_key = str(getattr(event, 'key', '') or (event.get('key', '') if isinstance(event, dict) else '')).lower()
+        # 1. ROBUST IDENTIFICATION (Object vs Dictionary)
+        if isinstance(event, dict):
+            e_type = event.get('event_type')
+            e_key = str(event.get('key', '')).lower()
+            # Deep metadata check for app name
+            app_name = str(event.get('app_name') or event.get('metadata', {}).get('app', 'Unknown')).lower()
+        else:
+            e_type = getattr(event, 'event_type', None)
+            e_key = str(getattr(event, 'key', '')).lower()
+            # Deep attribute check for app name
+            app_name = str(getattr(event, 'app_name', None) or getattr(event, 'metadata', {}).get('app', 'Unknown')).lower()
 
-        # A. PHYSICAL PATH: Euclidean distance calculation (Pixels Traversed)
-        # Formula: d = sqrt((x2-x1)^2 + (y2-y1)^2)
+        # 2. DASHBOARD FILTER (Strict Exclusion)
+        # Prevents the tool from tracking its own switches/clicks
+        is_dashboard = any(x in app_name for x in ["Attention Mapping", "127.0.0.1", "localhost", "chrome-extension"])
+
+        # 3. PHYSICAL PATH MATH (Euclidean distance)
         if e_type == "mouse_move":
-            curr_x = getattr(event, 'x', 0)
-            curr_y = getattr(event, 'y', 0)
+            curr_x = event.get('x', 0) if isinstance(event, dict) else getattr(event, 'x', 0)
+            curr_y = event.get('y', 0) if isinstance(event, dict) else getattr(event, 'y', 0)
+            
             if self.last_mouse_pos:
+                # Calculate √((x2-x1)² + (y2-y1)²)
                 dist = math.sqrt((curr_x - self.last_mouse_pos[0])**2 + (curr_y - self.last_mouse_pos[1])**2)
                 self.total_mouse_distance += dist
             self.last_mouse_pos = (curr_x, curr_y)
 
-        # B. TRUTHFUL ALT+TAB: Supports cycling (detects multiple tabs while Alt is held)
+        # 4. TRUTHFUL APP JUMPS (Filtering out the Dashboard)
+        if e_type == "app_switch":
+            # Extract name and filter out the dashboard
+            name = getattr(event, 'app_name', None) or event.get('app_name', 'Unknown')
+            if any(x in name.lower() for x in ["Attention Mapping", "127.0.0.1"]):
+                return # Ignore dashboard
+            self.current_app = name
+
+        # 5. TRUTHFUL ALT+TAB (Cycling Support)
         if e_type == "keyboard":
             if "alt" in e_key:
                 self.alt_pressed = True
             elif "tab" in e_key and self.alt_pressed:
-                if isinstance(event, dict): 
-                    event['event_type'] = 'tab_switch'
-                else: 
-                    setattr(event, 'event_type', 'tab_switch')
+                # Re-categorize as a tab switch so it doesn't count as a jump or keypress
+                if isinstance(event, dict): event['event_type'] = 'tab_switch'
+                else: setattr(event, 'event_type', 'tab_switch')
             else:
-                # Reset only if a non-Tab key is pressed or Alt is released
+                # Reset if any non-Tab key is hit
                 if "tab" not in e_key:
                     self.alt_pressed = False
 
+        # 6. FINAL STORAGE
         self.events.append(event)
 
     def click_event(self, event):
@@ -149,22 +177,74 @@ class SessionOrchestrator:
             "security": OfflineValidator().get_security_status()
         }
 
-    def end_session(self):
-        """Stops listeners and generates the final cognitive report."""
-        if not self.session_active:
-            return {"status": "no_active_session"}
-            
-        self.session_active = False
-        self.keyboard.stop()
-        self.mouse.stop()
-        self.scroll.stop()
-        self.app.stop()
-        
-        session_end = datetime.now()
-        self.last_mouse_pos = None # Clean up for memory
-        
-        return self.generate_analysis(session_end)
+    def get_manual_gravity(self):
+        """Helper to identify app usage from the current event list."""
+        gravity_stats = {}
+        for e in self.events:
+            # Check both object attributes and dictionary keys
+            name = getattr(e, 'app_name', None) or (e.get('app_name') if isinstance(e, dict) else None)
+            if name and name not in ["Unknown", "", "Attention Mapping", "127.0.0.1", "localhost"]:
+                gravity_stats[name] = gravity_stats.get(name, 0) + 1
+        return gravity_stats
 
+    def end_session(self):
+        """Finalizes metrics and triggers the SQL storage command."""
+        if not self.session_active:
+            return None
+
+        # 1. Capture final time and duration
+        end_time = datetime.now()
+        duration = (end_time - self.session_start).total_seconds()
+
+        # 2. Extract specific counts for the Database
+        counts = {"keyboard": 0, "mouse_click": 0, "app_switch": 0}
+        for e in self.events:
+            t = getattr(e, 'event_type', None) or (e.get('event_type') if isinstance(e, dict) else None)
+            if t in counts: 
+                counts[t] += 1
+
+        # 3. Determine the Top App (Identify focus from Gravity Map)
+        gravity = self.get_manual_gravity()
+        top_app = max(gravity, key=gravity.get) if gravity else "None"
+        
+        # 4. Calculate Average Intensity
+        timeline_values = list(self.attention_engine.timeline.values())
+        avg_intensity = sum(timeline_values) / len(timeline_values) if timeline_values else 0.4
+
+        # 5. TRIGGER STORAGE
+        self.save_to_local_db({
+            "start": self.session_start.strftime('%Y-%m-%d %H:%M:%S'),
+            "end": end_time.strftime('%Y-%m-%d %H:%M:%S'),
+            "duration": round(duration, 2),
+            "keys": counts["keyboard"],
+            "clicks": counts["mouse_click"],
+            "dist": round(self.total_mouse_distance, 1),
+            "jumps": counts["app_switch"],
+            "top_app": top_app,
+            "intensity": round(avg_intensity, 2)
+        })
+
+        self.session_active = False
+        self.events = [] # Clear memory for next session
+        return {"status": "stored", "duration": duration}
+
+    def save_to_local_db(self, data):
+        """Executes the SQL INSERT command with explicit commit."""
+        try:
+            conn = sqlite3.connect('attention_history.db')
+            cursor = conn.cursor()
+            # Ensure the number of '?' matches your table columns
+            cursor.execute('''
+                INSERT INTO session_history 
+                (start_time, end_time, duration, total_keys, total_clicks, mouse_distance, app_jumps, top_app, average_intensity)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (data['start'], data['end'], data['duration'], data['keys'], 
+                  data['clicks'], data['dist'], data['jumps'], data['top_app'], data['intensity']))
+            conn.commit()  # This saves the data to the disk
+            conn.close()
+            print(f"[+] Session persisted to local DB: {data['top_app']}")
+        except Exception as e:
+            print(f"[-] Database Error: {e}")
     def generate_analysis(self, session_end):
         """Computes the final Stability Score and generates the full analysis report."""
         report = self.report_generator.generate(self.events)
@@ -182,39 +262,43 @@ class SessionOrchestrator:
         })
         return report
     def get_realtime_status(self):
-        """Calculates metrics for the dashboard."""
         if not self.session_active or self.session_start is None:
             return {"status": "inactive"}
 
-        # FIX: Calculate duration locally before using it
-        now = datetime.now()
-        duration_seconds = (now - self.session_start).total_seconds()
-        
-        # Metric aggregation
-        counts = {"keyboard": 0, "tab_switch": 0, "mouse_move": 0, "mouse_click": 0, "app_switch": 0}
+        # 1. GENERATE THE GRAPH POINTS
+        self.attention_engine.update(self.events)
+
+        # 2. MANUAL GRAVITY CALCULATION (More reliable than the model)
+        gravity_stats = {}
+        for e in self.events:
+            # Extract app name from object or dictionary
+            name = getattr(e, 'app_name', None) or (e.get('app_name') if isinstance(e, dict) else None)
+            # Ignore the dashboard and 'Unknown'
+            if name and name != "Unknown" and name != "":
+                gravity_stats[name] = gravity_stats.get(name, 0) + 1
+
+        # 3. COUNTER LOGIC (As you already wrote)
+        counts = {"keyboard": 0, "tab_switch": 0, "mouse_click": 0, "app_switch": 0}
         for e in self.events:
             t = getattr(e, 'event_type', None) or (e.get('event_type') if isinstance(e, dict) else None)
-            if t in counts: counts[t] += 1
+            if t in counts: 
+                counts[t] += 1
 
-        adaptive = self.attention_engine.get_adaptive_metrics()
-
-        # FIX: Remove 'navigator'. Use the OfflineValidator or a simple boolean check.
-        # We let the Frontend (JS) handle the actual "Blue/Green" dot logic.
+        # 4. FINAL PAYLOAD
         return {
             "status": "active",
-            "duration": round(duration_seconds, 2),
+            "duration": round((datetime.now() - self.session_start).total_seconds(), 2),
             "keyboard_events": counts["keyboard"],
-            "tab_switches": counts["tab_switch"],
             "mouse_clicks": counts["mouse_click"],
             "mouse_moves": round(self.total_mouse_distance, 1),
+            "tab_switches": counts["tab_switch"],
             "app_switches": counts["app_switch"],
-            "state": adaptive.get("state", "Stable"),
-            "intensity_ratio": adaptive.get("intensity_ratio", 1.0),
-            "gravity_map": GravityModel().calculate_gravity(self.events),
-            "timeline": self.attention_engine.get_attention_timeline(),
-            "security": "LOCAL_ENCRYPTED" # Python just confirms the storage mode
+            "gravity_map": gravity_stats,  # Sends real app names
+            "timeline": self.attention_engine.get_attention_timeline(), # The graph line
+            "intensity_ratio": round(self.attention_engine.last_score, 2),
+            "state": self.attention_engine.get_adaptive_metrics().get("state", "Stable")
+            
         }
-
 # --- REAL-TIME CLI EXECUTION BLOCK ---
 if __name__ == "__main__":
     orchestrator = SessionOrchestrator()

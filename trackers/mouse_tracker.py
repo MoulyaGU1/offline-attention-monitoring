@@ -13,23 +13,15 @@ class MouseTracker:
         self.last_move_time = 0
 
     def on_move(self, x, y):
-
-        now = time.time()
-
-        # throttle to ~20 events/sec
-        if now - self.last_move_time < 0.05:
-            return
-
-        self.last_move_time = now
-
-        event = InteractionEvent(
-            event_type="mouse_move",
-            timestamp=datetime.now(),
-            metadata={"x": x, "y": y}
-        )
-
+        # Create a simple data packet for the event bus
+        event = {
+            "event_type": "mouse_move",
+            "x": x,
+            "y": y,
+            "timestamp": datetime.now() # Fixed: removed the double '.datetime'
+        }
         self.event_bus.publish("mouse_move", event)
-
+        
     def on_click(self, x, y, button, pressed):
 
         if pressed:
@@ -55,3 +47,4 @@ class MouseTracker:
 
         if self.listener:
             self.listener.stop()
+    

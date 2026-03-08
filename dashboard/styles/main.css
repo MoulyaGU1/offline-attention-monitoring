@@ -84,3 +84,88 @@ pre { background: #000; padding: 20px; border-radius: 8px; color: var(--accent);
     50% { transform: scale(1.05); opacity: 0.8; }
     100% { transform: scale(0.95); opacity: 1; }
 }
+.stat-group {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    padding: 10px 0;
+}
+.stat-box { text-align: center; }
+.stat-divider { width: 1px; height: 40px; background: rgba(255,255,255,0.1); }
+.canvas-wrapper {
+    position: relative;
+    height: 200px !important; /* Force a height */
+    width: 100%;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 4px;
+    margin: 10px 0;
+}
+
+#attentionChart {
+    display: block;
+    width: 100% !important;
+    height: 100% !important;
+}
+/* Sidebar Menu */
+.side-menu {
+    height: 100%;
+    width: 0;
+    position: fixed;
+    z-index: 2000;
+    top: 0;
+    left: 0;
+    background-color: rgba(10, 10, 10, 0.98);
+    overflow-x: hidden;
+    transition: 0.5s;
+    padding-top: 60px;
+    border-right: 2px solid #00ff88;
+}
+
+.side-menu.open {
+    width: 25%; /* Half page width */
+}
+
+/* Hamburger Icon */
+.hamburger {
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    margin-right: 20px;
+}
+
+.hamburger span {
+    width: 25px;
+    height: 2px;
+    background-color: #00ff88;
+    transition: 0.3s;
+}
+
+/* Menu Buttons */
+.menu-btn {
+    width: 80%;
+    margin: 15px auto;
+    display: block;
+    padding: 15px;
+    background: transparent;
+    border: 1px solid #333;
+    color: white;
+    cursor: pointer;
+    text-align: left;
+    font-size: 1rem;
+    transition: 0.3s;
+}
+
+.menu-btn:hover {
+    border-color: #00ff88;
+    background: rgba(0, 255, 136, 0.1);
+}
+
+.closebtn {
+    position: absolute;
+    top: 20px;
+    right: 25px;
+    font-size: 36px;
+    color: #00ff88;
+    text-decoration: none;
+}
