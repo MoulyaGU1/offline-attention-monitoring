@@ -3,9 +3,16 @@ import sqlite3
 from api.server import start_server
 
 def init_db():
-    """Initializes local encrypted storage"""
-    conn = sqlite3.connect('attention_history.db')
-    conn.execute('''
+    import sqlite3
+    import os
+    db_path = r"C:\Users\lenovo\OneDrive\Documents\Desktop\Moulya\attention-mapping-tool\attention_history.db"
+    
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    
+    # REMOVE: cursor.execute("DROP TABLE IF EXISTS session_history") 
+    # USE THIS INSTEAD:
+    cursor.execute('''
         CREATE TABLE IF NOT EXISTS session_history (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             start_time TEXT,
@@ -16,11 +23,13 @@ def init_db():
             mouse_distance REAL,
             app_jumps INTEGER,
             top_app TEXT,
-            average_intensity REAL
+            average_intensity REAL,
+            idle_duration REAL
         )
     ''')
     conn.commit()
     conn.close()
+    print(f"[+] Local Repository Synced. Previous sessions preserved.")
 if __name__ == "__main__":
     print("==============================================")
     print("🧠 OFFLINE ATTENTION MAPPING TOOL: WEB MODE")

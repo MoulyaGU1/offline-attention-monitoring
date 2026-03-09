@@ -21,6 +21,7 @@
             <tr>
                 <th>Date & Time</th>
                 <th>Duration</th>
+                <th style="color: #ffcc00;">Idle Time</th>
                 <th>App Jumps</th>
                 <th>Primary Focus</th>
                 <th style="width: 150px;">Attention Topology</th>
@@ -32,58 +33,46 @@
     </table>
 </section>
 
-<style>
-    /* Clean formatting for the repository */
-    .history-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-    .history-table th { color: #00ff88; text-transform: uppercase; font-size: 0.8rem; padding: 15px; border-bottom: 2px solid #333; }
-    .history-table td { padding: 15px; border-bottom: 1px solid #222; font-size: 0.9rem; }
-    
-    /* Focus Text Truncation */
-    .focus-text { max-width: 250px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
-    
-    /* Mini Graph Sparkline */
-    .mini-graph { width: 120px; height: 30px; display: flex; align-items: flex-end; gap: 2px; }
-    .bar { background: #00ff88; width: 4px; border-radius: 1px; }
-</style>
-
-    <script>
-        // Fetch and render the local encrypted history
-       async function loadHistory() {
+<script>
+async function loadHistory() {
     try {
         const response = await fetch('/api/history');
-        const data = await response.json();
-        const body = document.getElementById('historyBody');
-        
-        if (!data || data.length === 0) {
-            body.innerHTML = "<tr><td colspan='6' style='text-align:center;'>No sessions recorded yet.</td></tr>";
-            return;
-        }
+        const sessions = await response.json();
+        const tableBody = document.getElementById('historyBody');
+        tableBody.innerHTML = '';
 
-        body.innerHTML = data.map(row => {
-            // Index 4 is average_intensity
-            const intensity = parseFloat(row[4]) || 1.0;
-            
-            // Generate 12 bars representing the Attention Topology
-            let barsHtml = '';
-            for (let i = 0; i < 12; i++) {
-                const height = Math.min(Math.max((Math.random() * 0.4 + (intensity - 0.2)) * 20, 4), 30);
-                barsHtml += `<div class="attention-bar" style="height: ${height}px;"></div>`;
-            }
-
-            return `
-                <tr>
-                    <td>${row[0]}</td> <td>${Math.floor(row[1])}s</td> <td>${row[2]} Jumps</td> <td><span class="focus-app-name" title="${row[3]}">${row[3]}</span></td>
-                    <td><div class="bar-graph-container">${barsHtml}</div></td>
-                    <td style="color: #00ff88; font-weight: bold;">${intensity.toFixed(2)}x</td>
-                </tr>
+        sessions.forEach(row => {
+            // INDEX MAPPING:
+            // row[1]=start, row[3]=duration, row[10]=idle, row[7]=jumps, row[8]=top_app, row[9]=intensity
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${row[1]}</td>
+                <td>${Math.round(row[3])}s</td>
+                <td style="color: #ffcc00; font-weight: bold;">${Math.round(row[10] || 0)}s</td>
+                <td>${row[7]}</td>
+                <td><span class="focus-app-name">${row[8]}</span></td>
+                <td><div class="bar-graph-container">${generateBars(row[9])}</div></td>
+                <td style="color: #00ff88;">${parseFloat(row[9]).toFixed(2)}x</td>
             `;
-        }).join('');
+            tableBody.appendChild(tr);
+        });
     } catch (err) {
-        console.error("Failed to load history:", err);
+        console.error("History Load Error:", err);
     }
 }
+
+// Call on load
 window.onload = loadHistory;
-    </script>
+
+function generateBars(intensity) {
+    let bars = '';
+    for(let i=0; i<10; i++) {
+        const h = Math.random() * (intensity * 15) + 5;
+        bars += `<div style="height:${h}px; width:3px; background:#00ff88; margin:1px; display:inline-block;"></div>`;
+    }
+    return bars;
+}
+</script>
     <style>
     /* Table & Container Styling */
     .history-table { width: 100%; border-collapse: collapse; background: #0a0a0a; }

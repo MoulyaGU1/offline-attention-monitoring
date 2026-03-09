@@ -1,3 +1,4 @@
+import os
 from flask import jsonify, render_template
 import sqlite3
 
@@ -13,26 +14,16 @@ def register_routes(app, orchestrator):
 
     @app.route('/api/history')
     def get_history():
-        """Retrieves the latest sessions from the local node."""
-        import sqlite3
-        import os
-    # Force absolute path to ensure data is read from the project folder
-        db_path = os.path.join(os.getcwd(), 'attention_history.db')
+    # MUST MATCH THE ORCHESTRATOR PATH EXACTLY
+        db_path = r"C:\Users\lenovo\OneDrive\Documents\Desktop\Moulya\attention-mapping-tool\attention_history.db"
     
-        try:
-            conn = sqlite3.connect(db_path)
-            cursor = conn.cursor()
-        # Order must match the HTML table: Date, Duration, Jumps, Focus, Intensity
-            cursor.execute('''
-            SELECT start_time, duration, app_jumps, top_app, average_intensity 
-            FROM session_history ORDER BY id DESC LIMIT 20
-        ''')
-            rows = cursor.fetchall()
-            conn.close()
-            return jsonify(rows)
-        except sqlite3.OperationalError:
-        # Returns empty list if table doesn't exist yet
-            return jsonify([])
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+    # Select all 11 columns
+        cursor.execute('SELECT * FROM session_history ORDER BY id DESC')
+        rows = cursor.fetchall()
+        conn.close()
+        return jsonify(rows)
     
 
     @app.route("/start-session", methods=["POST"])

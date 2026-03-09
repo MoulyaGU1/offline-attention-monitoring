@@ -17,7 +17,8 @@
         <button class="menu-btn" onclick="window.location.href='/history'">
             📊 VIEW SESSION HISTORY
         </button>
-        <button onclick="toggleIncognito()">Incognito Mode</button>
+        
+        
     </div>
 </div>
 
@@ -27,6 +28,49 @@
         <span></span>
         <span></span>
     </div>
+    <header class="main-header">
+    <div class="brand">
+        <h1>NEURO<span>STATE</span></h1>
+        <div class="compliance-tag">
+            <span class="status-dot pulsing-green"></span>
+            <span id="node-status">SECURE LOCAL NODE (AIR-GAPPED)</span>
+        </div>
+    </div>
+    
+</header>
+
+<style>
+    .compliance-tag {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: rgba(0, 255, 136, 0.1);
+        padding: 4px 12px;
+        border-radius: 20px;
+        border: 1px solid rgba(0, 255, 136, 0.3);
+        margin-top: 5px;
+    }
+    #node-status {
+        font-size: 0.7rem;
+        color: #00ff88;
+        letter-spacing: 1px;
+    }
+    .status-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #00ff88;
+    }
+    .pulsing-green {
+        box-shadow: 0 0 0 rgba(0, 255, 136, 0.4);
+        animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+        0% { box-shadow: 0 0 0 0 rgba(0, 255, 136, 0.7); }
+        70% { box-shadow: 0 0 0 10px rgba(0, 255, 136, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(0, 255, 136, 0); }
+    }
+</style>
     <div class="status-indicator">
         <div class="pulse-dot"></div>
         <span id="offline-status">LOCAL NODE: ONLINE (SYNCED)</span>
@@ -91,6 +135,7 @@
                 <h2 id="mouseMoves">0</h2>
                 <div class="card-footer">Pixels Traversed</div>
             </div>
+            
         </section>
 
         <section class="viz-grid">
