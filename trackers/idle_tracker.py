@@ -13,26 +13,23 @@ class IdleTracker:
         """Resets the clock when hardware activity is detected."""
         if self.is_idle:
             self.is_idle = False
-            self.event_bus.emit("idle_end", {"at": time.time()})
+            # CHANGE .emit TO .publish
+            self.event_bus.publish("idle_end", {"at": time.time()})
         self.last_activity = time.time()
 
     def update(self):
-        """
-        Calculates idle duration locally.
-        This must be called in the orchestrator loop.
-        """
+        """Calculates idle duration locally."""
         now = time.time()
         elapsed_since_activity = now - self.last_activity
         
-        # Calculate time passed since the last update() call
         delta_time = now - self.last_check_time
         self.last_check_time = now
 
         if elapsed_since_activity > self.threshold:
-            # User has passed the threshold, start counting seconds
             self.total_idle_time += delta_time
             if not self.is_idle:
                 self.is_idle = True
-                self.event_bus.emit("idle_start", {"duration": elapsed_since_activity})
+                # CHANGE .emit TO .publish
+                self.event_bus.publish("idle_start", {"duration": elapsed_since_activity})
         
         return self.is_idle
