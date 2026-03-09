@@ -1,0 +1,23 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Human attention map",
+  "version": "0.1.0",
+  "identifier": "com.ham.desktop",
+  "build": {
+  "devUrl": "http://127.0.0.1:5000",
+  "frontendDist": "../dashboard"
+},
+  "app": {
+    "windows": [
+      {
+        "title": "HAM - Human Attention Monitor",
+        "width": 1200,
+        "height": 800
+      }
+    ]
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all"
+  }
+}

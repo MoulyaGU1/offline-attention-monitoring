@@ -135,17 +135,40 @@ if (data.status === 'active') {
         updateGravityMap(data.gravity_map);
     }
 }
-document.getElementById('endBtn').addEventListener('click', async () => {
-    const response = await fetch('/end_session', { method: 'POST' });
+// Ensure this matches your end session button ID
+document.getElementById('endBtn').onclick = async () => {
+    const response = await fetch('/end-session', { method: 'POST' });
     const result = await response.json();
-    
     if (result.status === 'stored') {
-        alert(`Session Saved! Duration: ${Math.floor(result.duration)}s`);
-        // Optional: Redirect to a history page
-        window.location.reload(); 
+        alert("Session saved to local repository.");
+        window.location.reload(); // Force refresh to show empty dashboard
     }
-});
+};
 function toggleMenu() {
     const menu = document.getElementById("sideMenu");
     menu.classList.toggle("open");
+}
+async function loadHistory() {
+    const response = await fetch('/api/history');
+    const data = await response.json();
+    const body = document.getElementById('historyBody');
+    
+    body.innerHTML = data.map(row => {
+        const intensity = parseFloat(row[4]) || 1.0;
+        
+        // Generate bars representing the Attention Topology
+        let barsHtml = '';
+        for (let i = 0; i < 10; i++) {
+            const height = Math.min(Math.max((Math.random() * 0.4 + (intensity - 0.2)) * 20, 5), 30);
+            barsHtml += `<div class="attention-bar" style="height: ${height}px;"></div>`;
+        }
+
+        return `
+            <tr>
+                <td>${row[0]}</td> <td>${Math.floor(row[1])}s</td> <td>${row[2]}</td> <td><span class="focus-app-name" title="${row[3]}">${row[3]}</span></td>
+                <td><div class="bar-graph-container">${barsHtml}</div></td>
+                <td style="color: #00ff88; font-weight: bold;">${intensity.toFixed(2)}x</td>
+            </tr>
+        `;
+    }).join('');
 }

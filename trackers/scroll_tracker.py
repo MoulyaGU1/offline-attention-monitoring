@@ -3,6 +3,7 @@ from datetime import datetime
 from models.interaction_model import InteractionEvent
 import logging
 
+
 class ScrollTracker:
     def __init__(self, event_bus):
         self.event_bus = event_bus

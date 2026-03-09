@@ -11,19 +11,29 @@ def register_routes(app, orchestrator):
         # Renders the history viewing page
         return render_template("history.html")
 
-    @app.route("/api/history")
+    @app.route('/api/history')
     def get_history():
-        # Fixed indentation for database access
-        conn = sqlite3.connect('attention_history.db')
-        cursor = conn.cursor()
-        # Fetching latest sessions from local storage
-        cursor.execute('''
+        """Retrieves the latest sessions from the local node."""
+        import sqlite3
+        import os
+    # Force absolute path to ensure data is read from the project folder
+        db_path = os.path.join(os.getcwd(), 'attention_history.db')
+    
+        try:
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+        # Order must match the HTML table: Date, Duration, Jumps, Focus, Intensity
+            cursor.execute('''
             SELECT start_time, duration, app_jumps, top_app, average_intensity 
             FROM session_history ORDER BY id DESC LIMIT 20
         ''')
-        rows = cursor.fetchall()
-        conn.close()
-        return jsonify(rows)
+            rows = cursor.fetchall()
+            conn.close()
+            return jsonify(rows)
+        except sqlite3.OperationalError:
+        # Returns empty list if table doesn't exist yet
+            return jsonify([])
+    
 
     @app.route("/start-session", methods=["POST"])
     def start():

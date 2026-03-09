@@ -1,4 +1,6 @@
 from core.session_orchestrator import SessionOrchestrator
+from config import settings
+
 
 # This is the "Shared Instance"
 orchestrator = SessionOrchestrator()
@@ -17,6 +19,17 @@ def get_session_status():
     
     # This calls the method we added to the Orchestrator earlier
     return orchestrator.get_realtime_status()
+def toggle_incognito():
+    settings.INCOGNITO_MODE = not settings.INCOGNITO_MODE
+
+    if settings.INCOGNITO_MODE:
+        settings.SAVE_LOGS = False
+        settings.SAVE_HISTORY = False
+    else:
+        settings.SAVE_LOGS = True
+        settings.SAVE_HISTORY = True
+
+    return {"incognito": settings.INCOGNITO_MODE}
 
 def end_session():
     """Ends the global session and returns the final report."""

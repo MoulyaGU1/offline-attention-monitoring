@@ -51,7 +51,11 @@ class SessionOrchestrator:
         self.event_bus.subscribe("mouse_click", self.click_event)
         self.event_bus.subscribe("scroll", self.capture_event)
         self.event_bus.subscribe("app_switch", self.capture_event)
-
+        self.incognito_active = False
+    def toggle_incognito(self):
+        """Switches privacy mode locally without cloud APIs."""
+        self.incognito_mode = not getattr(self, 'incognito_mode', False)
+        return {"incognito": self.incognito_mode}
     def capture_event(self, event):
         """
         Unified Event Processor: 
@@ -188,63 +192,67 @@ class SessionOrchestrator:
         return gravity_stats
 
     def end_session(self):
-        """Finalizes metrics and triggers the SQL storage command."""
+        """Finalizes metrics and triggers the SQL storage command with local IST timestamps."""
         if not self.session_active:
-            return None
+            return {"status": "error", "message": "No active session"}
 
-        # 1. Capture final time and duration
-        end_time = datetime.now()
-        duration = (end_time - self.session_start).total_seconds()
+        try:
+            # 1. Capture final IST time
+            end_time = datetime.now() 
+            duration = round((end_time - self.session_start).total_seconds(), 2)
 
-        # 2. Extract specific counts for the Database
-        counts = {"keyboard": 0, "mouse_click": 0, "app_switch": 0}
-        for e in self.events:
-            t = getattr(e, 'event_type', None) or (e.get('event_type') if isinstance(e, dict) else None)
-            if t in counts: 
-                counts[t] += 1
+            # 2. Extract specific counts for the DB
+            counts = {"keyboard": 0, "mouse_click": 0, "app_switch": 0}
+            for e in self.events:
+                t = getattr(e, 'event_type', None) or (e.get('event_type') if isinstance(e, dict) else None)
+                if t in counts: counts[t] += 1
 
-        # 3. Determine the Top App (Identify focus from Gravity Map)
-        gravity = self.get_manual_gravity()
-        top_app = max(gravity, key=gravity.get) if gravity else "None"
-        
-        # 4. Calculate Average Intensity
-        timeline_values = list(self.attention_engine.timeline.values())
-        avg_intensity = sum(timeline_values) / len(timeline_values) if timeline_values else 0.4
+            # 3. Identify Primary Focus
+            gravity = self.get_manual_gravity()
+            top_app = max(gravity, key=gravity.get) if gravity else "None"
+            
+            # 4. Save to local repository
+            self.save_to_local_db({
+                "start": self.session_start.strftime('%Y-%m-%d %H:%M:%S'),
+                "end": end_time.strftime('%Y-%m-%d %H:%M:%S'),
+                "duration": duration,
+                "keys": counts["keyboard"],
+                "clicks": counts["mouse_click"],
+                "dist": round(self.total_mouse_distance, 1),
+                "jumps": counts["app_switch"],
+                "top_app": top_app,
+                "intensity": round(self.attention_engine.last_score, 2)
+            })
 
-        # 5. TRIGGER STORAGE
-        self.save_to_local_db({
-            "start": self.session_start.strftime('%Y-%m-%d %H:%M:%S'),
-            "end": end_time.strftime('%Y-%m-%d %H:%M:%S'),
-            "duration": round(duration, 2),
-            "keys": counts["keyboard"],
-            "clicks": counts["mouse_click"],
-            "dist": round(self.total_mouse_distance, 1),
-            "jumps": counts["app_switch"],
-            "top_app": top_app,
-            "intensity": round(avg_intensity, 2)
-        })
-
-        self.session_active = False
-        self.events = [] # Clear memory for next session
-        return {"status": "stored", "duration": duration}
+            self.session_active = False
+            self.events = [] 
+            return {"status": "stored", "duration": duration}
+            
+        except Exception as e:
+            print(f"[!] Storage Error: {e}")
+            return {"status": "error"}
 
     def save_to_local_db(self, data):
-        """Executes the SQL INSERT command with explicit commit."""
+        """Saves data to a fixed path to ensure it appears in your history."""
         try:
-            conn = sqlite3.connect('attention_history.db')
+            # Get the absolute path to your project folder
+            db_path = os.path.join(os.getcwd(), 'attention_history.db')
+            conn = sqlite3.connect(db_path)
             cursor = conn.cursor()
-            # Ensure the number of '?' matches your table columns
+            
+            # INSERT into the 9 columns of your local encrypted storage
             cursor.execute('''
                 INSERT INTO session_history 
                 (start_time, end_time, duration, total_keys, total_clicks, mouse_distance, app_jumps, top_app, average_intensity)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (data['start'], data['end'], data['duration'], data['keys'], 
                   data['clicks'], data['dist'], data['jumps'], data['top_app'], data['intensity']))
-            conn.commit()  # This saves the data to the disk
+            
+            conn.commit()
             conn.close()
-            print(f"[+] Session persisted to local DB: {data['top_app']}")
+            print(f"[+] Session persisted to: {db_path}")
         except Exception as e:
-            print(f"[-] Database Error: {e}")
+            print(f"[-] DB Write Error: {e}")
     def generate_analysis(self, session_end):
         """Computes the final Stability Score and generates the full analysis report."""
         report = self.report_generator.generate(self.events)

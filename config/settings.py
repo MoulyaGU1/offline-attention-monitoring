@@ -15,3 +15,6 @@ LOG_LEVEL = "INFO"
 
 # dashboard update rate
 DASHBOARD_REFRESH_RATE = 2
+INCOGNITO_MODE = False
+SAVE_LOGS = True
+SAVE_HISTORY = True

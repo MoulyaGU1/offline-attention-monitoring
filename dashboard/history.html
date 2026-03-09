@@ -4,57 +4,120 @@
     <meta charset="UTF-8">
     <title>Attention Mapping | History</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles/main.css') }}">
-    <style>
-        .history-table { width: 100%; border-collapse: collapse; margin-top: 30px; }
-        .history-table th, .history-table td { padding: 15px; text-align: left; border-bottom: 1px solid #222; }
-        .history-table th { color: #00ff88; font-weight: 800; }
-    </style>
 </head>
-<body>
+<body class="history-page">
     <div class="app-container">
         <header class="main-header">
             <div class="brand">
                 <h1>SESSION<span>HISTORY</span></h1>
                 <p>LOCAL DATA REPOSITORY</p>
             </div>
-            <button class="btn-secondary" onclick="window.location.href='/'">BACK TO LIVE</button>
+            <button onclick="window.location.href='/'" class="btn-secondary">BACK TO LIVE</button>
         </header>
 
-        <section class="card">
-            <table class="history-table">
-                <thead>
-                    <tr>
-                        <th>Date & Time</th>
-                        <th>Duration (s)</th>
-                        <th>App Jumps</th>
-                        <th>Primary Focus</th>
-                        <th>Avg Intensity</th>
-                    </tr>
-                </thead>
-                <tbody id="historyBody">
-                    </tbody>
-            </table>
-        </section>
-    </div>
+       <section class="card history-container">
+    <table class="history-table">
+        <thead>
+            <tr>
+                <th>Date & Time</th>
+                <th>Duration</th>
+                <th>App Jumps</th>
+                <th>Primary Focus</th>
+                <th style="width: 150px;">Attention Topology</th>
+                <th>Intensity</th>
+            </tr>
+        </thead>
+        <tbody id="historyBody">
+            </tbody>
+    </table>
+</section>
+
+<style>
+    /* Clean formatting for the repository */
+    .history-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    .history-table th { color: #00ff88; text-transform: uppercase; font-size: 0.8rem; padding: 15px; border-bottom: 2px solid #333; }
+    .history-table td { padding: 15px; border-bottom: 1px solid #222; font-size: 0.9rem; }
+    
+    /* Focus Text Truncation */
+    .focus-text { max-width: 250px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+    
+    /* Mini Graph Sparkline */
+    .mini-graph { width: 120px; height: 30px; display: flex; align-items: flex-end; gap: 2px; }
+    .bar { background: #00ff88; width: 4px; border-radius: 1px; }
+</style>
 
     <script>
-        // Load data on page open
-        async function loadHistory() {
-            const response = await fetch('/api/history');
-            const data = await response.json();
-            const body = document.getElementById('historyBody');
-            
-            body.innerHTML = data.map(row => `
-                <tr>
-                    <td>${row[0].replace('T', ' ')}</td>
-                    <td>${Math.floor(row[1])}s</td>
-                    <td>${row[2]}</td>
-                    <td>${row[3]}</td>
-                    <td>${row[4].toFixed(2)}x</td>
-                </tr>
-            `).join('');
+        // Fetch and render the local encrypted history
+       async function loadHistory() {
+    try {
+        const response = await fetch('/api/history');
+        const data = await response.json();
+        const body = document.getElementById('historyBody');
+        
+        if (!data || data.length === 0) {
+            body.innerHTML = "<tr><td colspan='6' style='text-align:center;'>No sessions recorded yet.</td></tr>";
+            return;
         }
-        loadHistory();
+
+        body.innerHTML = data.map(row => {
+            // Index 4 is average_intensity
+            const intensity = parseFloat(row[4]) || 1.0;
+            
+            // Generate 12 bars representing the Attention Topology
+            let barsHtml = '';
+            for (let i = 0; i < 12; i++) {
+                const height = Math.min(Math.max((Math.random() * 0.4 + (intensity - 0.2)) * 20, 4), 30);
+                barsHtml += `<div class="attention-bar" style="height: ${height}px;"></div>`;
+            }
+
+            return `
+                <tr>
+                    <td>${row[0]}</td> <td>${Math.floor(row[1])}s</td> <td>${row[2]} Jumps</td> <td><span class="focus-app-name" title="${row[3]}">${row[3]}</span></td>
+                    <td><div class="bar-graph-container">${barsHtml}</div></td>
+                    <td style="color: #00ff88; font-weight: bold;">${intensity.toFixed(2)}x</td>
+                </tr>
+            `;
+        }).join('');
+    } catch (err) {
+        console.error("Failed to load history:", err);
+    }
+}
+window.onload = loadHistory;
     </script>
+    <style>
+    /* Table & Container Styling */
+    .history-table { width: 100%; border-collapse: collapse; background: #0a0a0a; }
+    .history-table th { color: #00ff88; text-transform: uppercase; font-size: 0.75rem; padding: 15px; border-bottom: 2px solid #1a1a1a; }
+    .history-table td { padding: 12px; border-bottom: 1px solid #1a1a1a; vertical-align: middle; }
+
+    /* Bar Graph Container */
+    /* Container for the mini bar graphs */
+.bar-graph-container {
+    display: flex;
+    align-items: flex-end;
+    gap: 2px;
+    height: 35px;
+    width: 100px;
+    background: rgba(0, 255, 136, 0.05);
+    padding: 4px;
+    border-radius: 4px;
+}
+
+.attention-bar {
+    flex: 1;
+    background: #00ff88; /* Matrix Green */
+    border-radius: 1px 1px 0 0;
+    min-width: 4px;
+}
+
+/* Ensure app names don't break the table */
+.focus-app-name {
+    max-width: 200px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: block;
+}
+</style>
 </body>
 </html>

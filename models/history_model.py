@@ -1,5 +1,13 @@
 import sqlite3
 import os
+from config import settings
+
+def save_history(data):
+
+    if settings.INCOGNITO_MODE:
+        return
+
+    # existing save code
 
 def init_db():
     conn = sqlite3.connect('attention_history.db')

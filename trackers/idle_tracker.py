@@ -3,6 +3,7 @@ import threading
 from datetime import datetime
 import logging
 
+
 class IdleTracker:
     def __init__(self, event_bus, threshold=10):
         self.event_bus = event_bus

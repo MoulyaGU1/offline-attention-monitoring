@@ -17,9 +17,7 @@
         <button class="menu-btn" onclick="window.location.href='/history'">
             📊 VIEW SESSION HISTORY
         </button>
-        <button class="menu-btn" onclick="toggleMenu()">
-            🏠 RETURN TO DASHBOARD
-        </button>
+        <button onclick="toggleIncognito()">Incognito Mode</button>
     </div>
 </div>
 
@@ -74,7 +72,7 @@
             </div>
 
             <div class="card context-card">
-    <div class="card-header">COGNITIVE SWITCHES</div>
+    <div class="card-header">APP SWITCHES</div>
     <div class="stat-group">
         <div class="stat-box">
             
@@ -97,7 +95,7 @@
 
         <section class="viz-grid">
             <div class="card chart-area">
-                <div class="card-header">ATTENTION TOPOLOGY (REAL-TIME)</div>
+                <div class="card-header">ATTENTION GRAPH MAPPING (REAL-TIME)</div>
                 <div class="canvas-wrapper">
                     <canvas id="attentionChart"></canvas>
                 </div>
@@ -109,12 +107,7 @@
             </div>
         </section>
 
-        <footer class="system-footer">
-            <div class="card log-card">
-                <div class="card-header">COGNITIVE EVENT LOG</div>
-                <pre id="patterns">Initializing system sensors...</pre>
-            </div>
-        </footer>
+      
     </div>
 
     <script src="{{ url_for('static', filename='scripts/dashboard.js') }}"></script>

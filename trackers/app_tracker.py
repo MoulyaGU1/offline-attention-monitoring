@@ -4,6 +4,8 @@ from datetime import datetime
 from models.interaction_model import InteractionEvent
 import logging
 
+
+
 class AppTracker:
     def __init__(self, event_bus):
         self.event_bus = event_bus
@@ -42,6 +44,7 @@ class AppTracker:
                 # This is where your current error is being caught
                 self.logger.error(f"AppTracker polling error: {e}")
                 time.sleep(1)
+    
     def start(self):
         """Sets the running flag and captures the initial active app."""
         self.running = True
@@ -52,3 +55,5 @@ class AppTracker:
     def stop(self):
         self.running = False
         self.logger.info("AppTracker stopped.")
+
+    

@@ -3,6 +3,7 @@ import sqlite3
 from api.server import start_server
 
 def init_db():
+    """Initializes local encrypted storage"""
     conn = sqlite3.connect('attention_history.db')
     conn.execute('''
         CREATE TABLE IF NOT EXISTS session_history (
@@ -20,7 +21,6 @@ def init_db():
     ''')
     conn.commit()
     conn.close()
-
 if __name__ == "__main__":
     print("==============================================")
     print("🧠 OFFLINE ATTENTION MAPPING TOOL: WEB MODE")

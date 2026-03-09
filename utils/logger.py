@@ -1,6 +1,7 @@
 import logging
 import os
 from config.settings import LOG_LEVEL
+from config import settings
 
 class Logger:
     _logger = None
@@ -43,3 +44,7 @@ class Logger:
 
         Logger._logger = logger
         return logger
+    def log_event(message):
+        if settings.INCOGNITO_MODE:
+            return
+        print(message)
