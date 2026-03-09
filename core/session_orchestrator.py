@@ -227,6 +227,17 @@ class SessionOrchestrator:
 
             # DATA PACKAGE
             # DATA PACKAGE
+            # 1. ANALYZE WHICH APP HAD THE MOST ACTIVITY
+            gravity = self.get_manual_gravity()
+            
+            # Find the app with the most events. Fallback to "General Activity" if none.
+            if gravity:
+                # This picks the app name with the highest count
+                top_app = max(gravity, key=gravity.get)
+            else:
+                top_app = "General Activity"
+
+            # 2. DATA PACKAGE (Now using the dynamic 'top_app')
             db_data = {
                 "start": self.session_start.strftime('%Y-%m-%d %H:%M:%S'),
                 "end": session_end.strftime('%Y-%m-%d %H:%M:%S'),
@@ -235,9 +246,9 @@ class SessionOrchestrator:
                 "clicks": counts["mouse_click"],
                 "dist": round(self.total_mouse_distance, 1),
                 "jumps": counts["app_switch"],
-                "top_app": "Session Activity",
+                "top_app": top_app,  # <--- FIXED: No longer "Session Activity"
                 "intensity": round(intensity, 2),
-                "idle_duration": round(idle_time, 2)  # CHANGED FROM "idle" TO "idle_duration"
+                "idle_duration": round(idle_time, 2)
             }
 
             self.save_to_local_db(db_data)
