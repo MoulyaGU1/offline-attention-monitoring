@@ -86,19 +86,31 @@ function updateGravityMap(gravityData) {
 
     container.innerHTML = ''; 
 
+    // 1. Calculate Total Usage locally for percentage calculation
+    const totalUsage = Object.values(gravityData).reduce((a, b) => a + b, 0);
+
     // OFFLINE SORTING: Sort by usage count stored in local SQLite
     const sortedApps = Object.entries(gravityData).sort((a, b) => b[1] - a[1]);
 
     sortedApps.forEach(([app, count]) => {
         const item = document.createElement('div');
-        // Visual indicator of 'Gravity' (width of the green bar)
+        
+        // 2. Logic for Visual Indicators
         const gravityWidth = Math.min(count * 5, 100); 
+        // Usage percentage relative to total session activity
+        const usagePercentage = totalUsage > 0 ? ((count / totalUsage) * 100).toFixed(1) : 0;
 
         item.innerHTML = `
-            <div class="gravity-item">
-                <small>${app}</small>
-                <div class="offline-progress-bg">
-                    <div class="offline-progress-fill" style="width: ${gravityWidth}%"></div>
+            <div class="gravity-item" style="margin-bottom: 12px;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 2px;">
+                    <small style="font-weight: bold; color: #00ff88;">${app}</small>
+                    <small style="color: #888;">${usagePercentage}% Focus</small>
+                </div>
+                <div class="offline-progress-bg" style="height: 6px; background: #222; border-radius: 3px; overflow: hidden;">
+                    <div class="offline-progress-fill" style="width: ${gravityWidth}%; height: 100%; background: #00ff88; transition: width 0.3s;"></div>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-top: 2px;">
+                    <small style="font-size: 10px; color: #555;">Pulls/Switches: ${count}</small>
                 </div>
             </div>
         `;
