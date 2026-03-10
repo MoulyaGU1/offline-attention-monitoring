@@ -14,6 +14,12 @@
         <h1>PATTERN<span>ANALYSIS</span></h1>
         <p>SELECT VISUALIZATION TOPOLOGY</p>
     </div>
+    <div class="view-selector">
+    <select id="sessionPicker" class="selector-btn" onchange="updateSessionId()">
+    <option value="all">ALL-TIME OVERVIEW</option>
+</select>
+    
+    
     
     <div class="view-selector">
         <button class="selector-btn active" onclick="switchPattern('bar')">INTENSITY BARS</button>
@@ -38,4 +44,4 @@
 
     <script src="{{ url_for('static', filename='scripts/analytics.js') }}"></script>
 </body>
-</html>
+</html>                        

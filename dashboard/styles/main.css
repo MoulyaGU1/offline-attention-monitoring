@@ -235,3 +235,12 @@ pre { background: #000; padding: 20px; border-radius: 8px; color: var(--accent);
     margin-top: 20px;
     background: radial-gradient(circle at center, #0a1510 0%, #050505 100%);
 }
+.canvas-container {
+    padding: 20px;
+    background: radial-gradient(circle at center, rgba(0, 255, 136, 0.03) 0%, transparent 70%);
+    border-radius: 12px;
+}
+
+#mainAnalyticsChart {
+    filter: drop-shadow(0 0 5px rgba(0, 255, 136, 0.1));
+}
