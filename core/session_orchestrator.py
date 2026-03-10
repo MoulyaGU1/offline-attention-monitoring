@@ -195,49 +195,48 @@ class SessionOrchestrator:
         return gravity_stats
 
     def end_session(self):
+        """Finalizes the session and maps the Attention Topology."""
         if not self.session_active:
             print("[-] End Session failed: Session not active")
             return {"status": "error"}
 
-        print("[*] Attempting to end session...")
+        print("[*] Finalizing Attention Topology mapping...")
         try:
             session_end = datetime.now()
             
-            # SAFE METRIC CAPTURE
+            # 1. TEMPORAL MAPPING
             duration = round((session_end - self.session_start).total_seconds(), 2)
-            print(f"[*] Duration captured: {duration}")
+            print(f"[*] Session Timeline captured: {duration}s")
 
+            # 2. INTERACTION PATTERN ANALYSIS
+            # Labeling counts as 'Contextual Switches' instead of just 'jumps'
             counts = {"keyboard": 0, "mouse_click": 0, "app_switch": 0}
             for e in self.events:
                 t = getattr(e, 'event_type', None) or (e.get('event_type') if isinstance(e, dict) else None)
                 if t in counts: counts[t] += 1
-            print(f"[*] Events counted: {counts}")
+            print(f"[*] Interaction Patterns detected: {counts}")
 
-            # SAFE IDLE CAPTURE
-            idle_time = 0
+            # 3. BIOLOGICAL RECOVERY CAPTURE
+            recovery_time = 0
             if hasattr(self, 'idle') and hasattr(self.idle, 'total_idle_time'):
-                idle_time = self.idle.total_idle_time
-            print(f"[*] Idle time captured: {idle_time}")
+                recovery_time = self.idle.total_idle_time
+            print(f"[*] Recovery Segment captured: {recovery_time}s")
 
-            # SAFE INTENSITY CAPTURE
-            intensity = 1.0
+            # 4. INTERACTION DENSITY (Replaces 'Intensity')
+            density = 1.0
             if hasattr(self, 'attention_engine'):
-                intensity = getattr(self.attention_engine, 'last_score', 1.0)
-            print(f"[*] Intensity captured: {intensity}")
+                density = getattr(self.attention_engine, 'last_score', 1.0)
+            print(f"[*] Interaction Density: {density}x")
 
-            # DATA PACKAGE
-            # DATA PACKAGE
-            # 1. ANALYZE WHICH APP HAD THE MOST ACTIVITY
+            # 5. ATTENTION GRAVITY (Identify Primary Context)
             gravity = self.get_manual_gravity()
-            
-            # Find the app with the most events. Fallback to "General Activity" if none.
             if gravity:
-                # This picks the app name with the highest count
-                top_app = max(gravity, key=gravity.get)
+                # Identifies the app that 'pulled' the most attention
+                primary_gravity = max(gravity, key=gravity.get)
             else:
-                top_app = "General Activity"
+                primary_gravity = "General Context"
 
-            # 2. DATA PACKAGE (Now using the dynamic 'top_app')
+            # 6. NON-JUDGMENTAL DATA PACKAGE
             db_data = {
                 "start": self.session_start.strftime('%Y-%m-%d %H:%M:%S'),
                 "end": session_end.strftime('%Y-%m-%d %H:%M:%S'),
@@ -245,10 +244,10 @@ class SessionOrchestrator:
                 "keys": counts["keyboard"],
                 "clicks": counts["mouse_click"],
                 "dist": round(self.total_mouse_distance, 1),
-                "jumps": counts["app_switch"],
-                "top_app": top_app,  # <--- FIXED: No longer "Session Activity"
-                "intensity": round(intensity, 2),
-                "idle_duration": round(idle_time, 2)
+                "switches": counts["app_switch"],  # Contextual Fragmentation
+                "gravity": primary_gravity,        # Attention Pull
+                "density": round(density, 2),      # Interaction Burstiness
+                "recovery": round(recovery_time, 2) # Cognitive Rest
             }
 
             self.save_to_local_db(db_data)
@@ -256,32 +255,43 @@ class SessionOrchestrator:
             return {"status": "stored"}
 
         except Exception as e:
-            print(f"[-] CRASH IN end_session: {e}")
+            print(f"[-] CRASH IN topology_mapping: {e}")
             import traceback
-            traceback.print_exc() # This will show us the EXACT line number
+            traceback.print_exc() 
             return {"status": "error"}
 
     def save_to_local_db(self, data):
+        """Persists the session to the Local Data Repository on this Lenovo machine."""
         try:
+            # Absolute path to prevent OneDrive ghosting
             db_path = r"C:\Users\lenovo\OneDrive\Documents\Desktop\Moulya\attention-mapping-tool\attention_history.db"
             conn = sqlite3.connect(db_path)
             cursor = conn.cursor()
             
+            # Map the non-judgmental keys to your existing database columns
             cursor.execute('''
                 INSERT INTO session_history 
                 (start_time, end_time, duration, total_keys, total_clicks, 
                  mouse_distance, app_jumps, top_app, average_intensity, idle_duration)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
-                data['start'], data['end'], data['duration'], data['keys'], 
-                data['clicks'], data['dist'], data['jumps'], data['top_app'], 
-                data['intensity'], data['idle_duration'] # MATCHED KEY
+                data['start'],    # start_time
+                data['end'],      # end_time
+                data['duration'], # duration
+                data['keys'],     # total_keys
+                data['clicks'],   # total_clicks
+                data['dist'],     # mouse_distance
+                data['switches'], # app_jumps (Contextual Switches)
+                data['gravity'],  # top_app (Primary Gravity)
+                data['density'],  # average_intensity (Interaction Density)
+                data['recovery']  # idle_duration (Recovery Segment)
             ))
+            
             conn.commit()
             conn.close()
-            print("[+++] SUCCESS: Persistent Save Complete.")
+            print("[+++] SUCCESS: Attention Topology saved to Local Node.")
         except Exception as e:
-            print(f"[---] SQL ERROR: {e}")
+            print(f"[---] SQL REPOSITORY ERROR: {e}")
 
     # --- MUST BE ALIGNED WITH 'def save_to_local_db' ---
     def generate_analysis(self, session_end):

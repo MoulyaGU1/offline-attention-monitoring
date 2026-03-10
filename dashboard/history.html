@@ -19,51 +19,52 @@
     <table class="history-table">
         <thead>
             <tr>
-                <th>Date & Time</th>
-                <th>Duration</th>
-                <th style="color: #ffcc00;">Idle Time</th>
-                <th>App Jumps</th>
-                <th>Primary Focus</th>
-                <th style="width: 150px;">Attention Topology</th>
-                <th>Intensity</th>
-              
+                <th>Timeline (IST)</th>
+                <th>Total Duration</th>
+                <th style="color: #ffcc00;">Recovery Segment</th>
+                <th>Context Switches</th>
+                <th>Primary Gravity</th>
+                <th style="width: 150px;">Interaction Bursts</th>
+                <th>Density</th>
             </tr>
         </thead>
-        <tbody id="historyBody">
-            </tbody>
+        <tbody id="historyBody"></tbody>
     </table>
 </section>
 
 <script>
 async function loadHistory() {
-    try {
-        const response = await fetch('/api/history');
-        const sessions = await response.json();
-        const tableBody = document.getElementById('historyBody');
-        tableBody.innerHTML = '';
+    const response = await fetch('/api/history');
+    const sessions = await response.json();
+    const tableBody = document.getElementById('historyBody');
+    tableBody.innerHTML = '';
 
-        sessions.forEach(row => {
-            // INDEX MAPPING:
-            // row[1]=start, row[3]=duration, row[10]=idle, row[7]=jumps, row[8]=top_app, row[9]=intensity
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td>${row[1]}</td>
-                <td>${Math.round(row[3])}s</td>
-                <td style="color: #ffcc00; font-weight: bold;">${Math.round(row[10] || 0)}s</td>
-                <td>${row[7]}</td>
-                <td><span class="focus-app-name">${row[8]}</span></td>
-                <td><div class="bar-graph-container">${generateBars(row[9])}</div></td>
-                <td style="color: #00ff88;">${parseFloat(row[9]).toFixed(2)}x</td>
-            `;
-            tableBody.appendChild(tr);
-        });
-    } catch (err) {
-        console.error("History Load Error:", err);
-    }
+    sessions.forEach(row => {
+        // row[1]:Time, row[3]:Dur, row[10]:Recovery, row[7]:Switches, row[8]:Gravity, row[9]:Density
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>${row[1]}</td>
+            <td>${Math.round(row[3])}s</td>
+            <td style="color: #ffcc00; font-weight: bold;">${Math.round(row[10])}s</td>
+            <td>${row[7]}</td>
+            <td><span class="focus-app-name">${row[8]}</span></td>
+            <td><div class="bar-graph-container">${generateTopologyBars(row[9])}</div></td>
+            <td style="color: #00ff88;">${parseFloat(row[9]).toFixed(2)}x</td>
+        `;
+        tableBody.appendChild(tr);
+    });
 }
 
-// Call on load
+function generateTopologyBars(density) {
+    let bars = '';
+    for(let i=0; i<8; i++) {
+        const h = Math.random() * (density * 12) + 4;
+        bars += `<div style="height:${h}px; width:4px; background:#00ff88; margin:1px; display:inline-block; border-radius:1px;"></div>`;
+    }
+    return bars;
+}
 window.onload = loadHistory;
+
 
 function generateBars(intensity) {
     let bars = '';

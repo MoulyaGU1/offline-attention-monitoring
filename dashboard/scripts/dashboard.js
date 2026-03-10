@@ -196,3 +196,12 @@ async function loadHistory() {
         console.error("History Load Error:", err);
     }
 }
+// SMART ZEN ALERT
+const distractions = ["Youtube", "Instagram", "Facebook", "Netflix"];
+const isDistracted = distractions.some(d => data.top_app.toLowerCase().includes(d.toLowerCase()));
+
+if (data.intensity_ratio > 1.5 && isDistracted) {
+    stateEl.innerText = "CONTEXT SHIFT DETECTED";
+    stateEl.style.color = "#ff0055"; // High-contrast warning
+    stateEl.style.textShadow = "0 0 10px #ff0055";
+}
