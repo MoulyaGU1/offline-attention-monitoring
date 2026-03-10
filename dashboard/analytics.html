@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>NeuroState | Visual Analytics</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles/main.css') }}">
+    
+    <script src="{{ url_for('static', filename='scripts/chart.min.js') }}"></script>
+</head>
+<body class="analytics-view">
+    <div class="app-container">
+        <header class="main-header">
+    <div class="brand">
+        <h1>PATTERN<span>ANALYSIS</span></h1>
+        <p>SELECT VISUALIZATION TOPOLOGY</p>
+    </div>
+    
+    <div class="view-selector">
+        <button class="selector-btn active" onclick="switchPattern('bar')">INTENSITY BARS</button>
+        <button class="selector-btn" onclick="switchPattern('doughnut')">DISTRIBUTION WHEEL</button>
+        <button class="selector-btn" onclick="switchPattern('line')">ATTENTION FLOW</button>
+        
+        <button class="selector-btn back-btn" onclick="window.location.href='/'" style="border-left: 2px solid #333; margin-left: 10px;">
+            🏠 LIVE DASHBOARD
+        </button>
+    </div>
+</header>
+
+        <section class="viz-focus-area">
+            <div class="card graph-hero">
+                <div class="card-header" id="patternTitle">ATTENTION INTENSITY (TIME-BASED)</div>
+                <div class="canvas-container">
+                    <canvas id="mainAnalyticsChart"></canvas>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <script src="{{ url_for('static', filename='scripts/analytics.js') }}"></script>
+</body>
+</html>

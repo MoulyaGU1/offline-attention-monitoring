@@ -34,27 +34,58 @@
 
 <script>
 async function loadHistory() {
-    const response = await fetch('/api/history');
-    const sessions = await response.json();
-    const tableBody = document.getElementById('historyBody');
-    tableBody.innerHTML = '';
+    try {
+        console.log("Attempting to fetch history from local node...");
+        const response = await fetch('/api/history');
+        const data = await response.json();
+        
+        const body = document.getElementById('historyBody');
+        if (!body) {
+            console.error("Error: historyBody element not found in DOM.");
+            return;
+        }
 
-    sessions.forEach(row => {
-        // row[1]:Time, row[3]:Dur, row[10]:Recovery, row[7]:Switches, row[8]:Gravity, row[9]:Density
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-            <td>${row[1]}</td>
-            <td>${Math.round(row[3])}s</td>
-            <td style="color: #ffcc00; font-weight: bold;">${Math.round(row[10])}s</td>
-            <td>${row[7]}</td>
-            <td><span class="focus-app-name">${row[8]}</span></td>
-            <td><div class="bar-graph-container">${generateTopologyBars(row[9])}</div></td>
-            <td style="color: #00ff88;">${parseFloat(row[9]).toFixed(2)}x</td>
-        `;
-        tableBody.appendChild(tr);
-    });
+        // --- THE CRITICAL BRIDGE ---
+        // We look for the "raw_history" key from your merged Python response
+        const sessions = data.raw_history || data;
+
+        if (!Array.isArray(sessions)) {
+            console.warn("No session array found. Data received:", data);
+            return;
+        }
+
+        body.innerHTML = sessions.map(row => {
+            // MATCHING YOUR SQL COLUMN SCHEMA (Index 0-10)
+            const startTime = row[1];
+            const duration  = Math.floor(row[3]) || 0;
+            const jumps     = row[7] || 0;
+            const topApp    = row[8] || "None";
+            const intensity = parseFloat(row[9]) || 1.0;
+            const idleTime  = Math.floor(row[10]) || 0;
+
+            return `
+                <tr>
+                    <td>${startTime}</td>
+                    <td>${duration}s</td>
+                    <td style="color: #ffcc00; font-weight: bold;">${idleTime}s</td>
+                    <td>${jumps}</td>
+                    <td><span class="focus-app-name">${topApp}</span></td>
+                    <td><div class="bar-graph-container">${generateTopologyBars(intensity)}</div></td>
+                    <td style="color: #00ff88;">${intensity.toFixed(2)}x</td>
+                </tr>
+            `;
+        }).join('');
+        
+        console.log("History table populated successfully.");
+    } catch (err) {
+        console.error("History Load Error:", err);
+    }
 }
 
+/**
+ * GENERATE TOPOLOGY BARS
+ * Visualizes interaction bursts in the table row.
+ */
 function generateTopologyBars(density) {
     let bars = '';
     for(let i=0; i<8; i++) {
@@ -63,6 +94,8 @@ function generateTopologyBars(density) {
     }
     return bars;
 }
+
+// CRITICAL: Ensure the function runs as soon as the window loads
 window.onload = loadHistory;
 
 

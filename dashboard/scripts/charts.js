@@ -73,3 +73,49 @@ function updateChart(timeline) {
     // Update with 'none' to skip internal re-calculations for speed
     attentionChart.update('none'); 
 }
+async function renderCharts() {
+    const response = await fetch('http://localhost:5000/api/data');
+    const data = await response.json();
+
+    const labels = data.distribution.map(item => item.app_name);
+    const values = data.distribution.map(item => item.count);
+
+    const ctx = document.getElementById('attentionChart').getContext('2d');
+    
+    // Default Chart: Bar Graph (as per your request)
+    let chartType = 'bar'; 
+
+    let myChart = new Chart(ctx, {
+        type: chartType,
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Attention Intensity (Seconds)',
+                data: values,
+                backgroundColor: ['#4e73df', '#1cc88a', '#36b9cc', '#f6c23e']
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false
+        }
+    });
+
+    // Function to switch patterns dynamically
+    window.updateChartPattern = function(newType) {
+        myChart.destroy();
+        myChart = new Chart(ctx, {
+            type: newType, // 'bar', 'doughnut' (Radial), or 'line'
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Attention Distribution',
+                    data: values,
+                    backgroundColor: ['#4e73df', '#1cc88a', '#36b9cc', '#f6c23e']
+                }]
+            }
+        });
+    };
+}
+
+renderCharts();

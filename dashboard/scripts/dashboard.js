@@ -84,27 +84,27 @@ function updateGravityMap(gravityData) {
     const container = document.getElementById('gravity-list');
     if (!container) return;
 
-    container.innerHTML = ''; // Clear old bars
+    container.innerHTML = ''; 
 
-    // Convert to array and sort by most used app
+    // OFFLINE SORTING: Sort by usage count stored in local SQLite
     const sortedApps = Object.entries(gravityData).sort((a, b) => b[1] - a[1]);
 
     sortedApps.forEach(([app, count]) => {
         const item = document.createElement('div');
-        item.style.marginBottom = "10px";
+        // Visual indicator of 'Gravity' (width of the green bar)
+        const gravityWidth = Math.min(count * 5, 100); 
+
         item.innerHTML = `
-            <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+            <div class="gravity-item">
                 <small>${app}</small>
-                <small>${count}</small>
-            </div>
-            <div style="height:4px; background:rgba(255,255,255,0.1); border-radius:2px;">
-                <div style="height:100%; width:${Math.min(count * 5, 100)}%; background:#00ff88; box-shadow: 0 0 10px #00ff88;"></div>
+                <div class="offline-progress-bg">
+                    <div class="offline-progress-fill" style="width: ${gravityWidth}%"></div>
+                </div>
             </div>
         `;
         container.appendChild(item);
     });
 }
-
 // --- 2. SESSION CONTROLS ---
 async function startSession() {
     const response = await fetch('/start-session', { method: 'POST' });
@@ -171,14 +171,23 @@ async function loadHistory() {
         const data = await response.json();
         const body = document.getElementById('historyBody');
         
-        body.innerHTML = data.map(row => {
-            // MATCH THESE TO YOUR SQL COLUMNS
+        // --- THE BRIDGE ---
+        // data is now { "distribution": [...], "raw_history": [...] }
+        // We MUST use data.raw_history to get the list of rows for the table.
+        const sessions = data.raw_history || data; 
+
+        if (!body) return;
+        body.innerHTML = ''; // Clear "Awaiting Data" message
+
+        body.innerHTML = sessions.map(row => {
+            // row[1]: Timestamp, row[3]: Duration, row[7]: Switches, 
+            // row[8]: App Name, row[9]: Density, row[10]: Idle/Recovery
             const startTime = row[1];
             const duration = Math.floor(row[3]) || 0;
             const jumps = row[7] || 0;
             const topApp = row[8] || "None";
             const intensity = parseFloat(row[9]) || 1.0;
-            const idleTime = Math.floor(row[10]) || 0; // NEW COLUMN AT INDEX 10
+            const idleTime = Math.floor(row[10]) || 0;
 
             return `
                 <tr>
@@ -196,12 +205,41 @@ async function loadHistory() {
         console.error("History Load Error:", err);
     }
 }
-// SMART ZEN ALERT
-const distractions = ["Youtube", "Instagram", "Facebook", "Netflix"];
-const isDistracted = distractions.some(d => data.top_app.toLowerCase().includes(d.toLowerCase()));
 
-if (data.intensity_ratio > 1.5 && isDistracted) {
-    stateEl.innerText = "CONTEXT SHIFT DETECTED";
-    stateEl.style.color = "#ff0055"; // High-contrast warning
-    stateEl.style.textShadow = "0 0 10px #ff0055";
+function renderGravityOffline(gravityData) {
+    const container = document.getElementById('gravity-list');
+    if (!container) return;
+
+    container.innerHTML = ''; 
+    const sortedApps = Object.entries(gravityData).sort((a, b) => b[1] - a[1]);
+
+    sortedApps.forEach(([app, count]) => {
+        const item = document.createElement('div');
+        item.className = "gravity-item-container";
+        // Calculate gravity percentage locally
+        const gravityWidth = Math.min(count * 5, 100); 
+
+        item.innerHTML = `
+            <div style="display:flex; justify-content:space-between; color:#00ff88; font-size:12px;">
+                <span>${app}</span>
+                <span>${count}</span>
+            </div>
+            <div style="height:2px; background:rgba(0,255,136,0.1); width:100%; margin:4px 0 12px 0;">
+                <div style="height:100%; width:${gravityWidth}%; background:#00ff88; box-shadow:0 0 8px #00ff88;"></div>
+            </div>
+        `;
+        container.appendChild(item);
+    });
+}
+
+function updateChartOffline(timeline) {
+    // Process timestamps locally without moment.js or external libs
+    const labels = Object.keys(timeline).map(t => t.split(' ').pop()); 
+    const values = Object.values(timeline);
+
+    attentionChart.data.labels = labels.slice(-30);
+    attentionChart.data.datasets[0].data = values.slice(-30);
+    
+    // 'none' prevents animation loops that drain CPU when offline
+    attentionChart.update('none'); 
 }
