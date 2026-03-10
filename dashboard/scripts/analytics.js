@@ -112,33 +112,42 @@ function switchPattern(pattern) {
 window.onload = () => fetchAndRender('bar');
 // --- ATTENTION RIVER LOGIC ---
 function updateAttentionRiver(sessionId) {
-    const container = document.getElementById('river-container');
-    if (!container) return;
-
-    // Using relative path is safer for local Flask apps
     fetch(`/api/history?id=${sessionId}`)
         .then(res => res.json())
         .then(data => {
-            // Your logic remains the same...
             const s = data.raw_history.find(r => r[0] == sessionId);
             if (!s) return;
 
-            const switches = s[7] || 0;
-            const topApp = s[8] || "System";
-            const intensity = parseFloat(s[9]) || 1.0;
+            // 1. Split the stored apps by the pipe '|' character
+            const appString = s[8] || "System";
+            const appList = appString.split('|').map(a => a.trim());
+            
+            // 2. The first app is the "Main Channel", others are "Branches"
+            const mainApp = appList[0];
+            const distractions = appList.slice(1); // Everything else
 
+            const intensity = parseFloat(s[9]) || 1.0;
             const riverWidth = Math.min(intensity * 20, 100); 
 
+            const container = document.getElementById('river-container');
             container.innerHTML = `
                 <div class="river-wrapper">
                     <div class="main-flow" style="height: ${riverWidth}px; width: 300px;">
-                        <span class="node-label">${topApp.split('-').pop().trim()}</span>
-                        ${generateBranches(switches)}
+                        <span class="node-label">${mainApp.split('-').pop()}</span>
+                        
+                        ${distractions.map((appName, i) => {
+                            const angle = (i - (distractions.length / 2)) * 30;
+                            return `
+                                <div class="leak-branch" style="width: 60px; transform: rotate(${angle}deg);">
+                                    <small style="position: absolute; right: -40px; color: #ff0055; font-size: 8px; transform: rotate(${-angle}deg);">
+                                        ${appName.split('-').pop()}
+                                    </small>
+                                </div>`;
+                        }).join('')}
                     </div>
                 </div>
             `;
-        })
-        .catch(err => console.error("River Fetch Error:", err));
+        });
 }
 
 function generateBranches(count) {
