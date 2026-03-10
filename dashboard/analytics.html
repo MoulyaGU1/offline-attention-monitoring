@@ -4,44 +4,58 @@
     <meta charset="UTF-8">
     <title>NeuroState | Visual Analytics</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles/main.css') }}">
-    
     <script src="{{ url_for('static', filename='scripts/chart.min.js') }}"></script>
 </head>
+
 <body class="analytics-view">
     <div class="app-container">
-        <header class="main-header">
-    <div class="brand">
-        <h1>PATTERN<span>ANALYSIS</span></h1>
-        <p>SELECT VISUALIZATION TOPOLOGY</p>
-    </div>
-    <div class="view-selector">
-    <select id="sessionPicker" class="selector-btn" onchange="updateSessionId()">
-    <option value="all">ALL-TIME OVERVIEW</option>
-</select>
-    
-    
-    
-    <div class="view-selector">
-        <button class="selector-btn active" onclick="switchPattern('bar')">INTENSITY BARS</button>
-        <button class="selector-btn" onclick="switchPattern('doughnut')">DISTRIBUTION WHEEL</button>
-        <button class="selector-btn" onclick="switchPattern('line')">ATTENTION FLOW</button>
         
-        <button class="selector-btn back-btn" onclick="window.location.href='/'" style="border-left: 2px solid #333; margin-left: 10px;">
-            🏠 LIVE DASHBOARD
-        </button>
-    </div>
-</header>
+        <header class="main-header" style="border-bottom: 1px solid #222; padding-bottom: 20px; margin-bottom: 20px;">
+            <div class="header-top-row" style="display: flex; justify-content: space-between; align-items: center; width: 100%; margin-bottom: 20px;">
+                <div class="brand">
+                    <h1 style="margin: 0;">PATTERN<span style="color: #00ff88;">ANALYSIS</span></h1>
+                    <p style="margin: 0; font-size: 0.7rem; color: #555; letter-spacing: 2px;">OFFLINE TOPOLOGY ENGINE</p>
+                </div>
+
+                <div class="view-selector" style="display: flex; gap: 10px; align-items: center;">
+                    <select id="sessionPicker" class="selector-btn" onchange="updateSessionId()" style="background: #111; border: 1px solid #333; color: #00ff88; padding: 8px 15px; border-radius: 4px;">
+                        <option value="all">ALL-TIME OVERVIEW</option>
+                    </select>
+
+                    <button class="selector-btn active" onclick="switchPattern('bar')">INTENSITY BARS</button>
+                    <button class="selector-btn" onclick="switchPattern('doughnut')">DISTRIBUTION WHEEL</button>
+                    <button class="selector-btn" onclick="switchPattern('line')">ATTENTION FLOW</button>
+                    
+                    <button class="selector-btn back-btn" onclick="window.location.href='/'" style="border-left: 1px solid #333; margin-left: 10px; padding-left: 15px; color: #888;">
+                        🏠 LIVE
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <div id="river-area" style="width: 100%; margin-bottom: 40px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <small style="color: #444; letter-spacing: 2px; text-transform: uppercase; font-size: 10px;">Attention Flow River</small>
+                <small style="color: #222; font-size: 9px;">PRIVATE • LOCAL • OFFLINE</small>
+            </div>
+            <div id="river-container" style="background: #080808; border: 1px solid #111; border-radius: 12px; min-height: 200px; display: flex; align-items: center; justify-content: center;">
+                <span style="color: #333; font-size: 0.9rem;">Select a specific session to visualize the flow pathway...</span>
+            </div>
+        </div>
 
         <section class="viz-focus-area">
-            <div class="card graph-hero">
-                <div class="card-header" id="patternTitle">ATTENTION INTENSITY (TIME-BASED)</div>
-                <div class="canvas-container">
+            <div class="card graph-hero" style="background: #0d0d0d; border: 1px solid #1a1a1a; border-radius: 12px; padding: 20px;">
+                <div class="card-header" id="patternTitle" style="color: #00ff88; font-size: 0.8rem; letter-spacing: 1px; margin-bottom: 20px; border-bottom: 1px solid #1a1a1a; padding-bottom: 10px;">
+                    ATTENTION INTENSITY (TIME-BASED)
+                </div>
+                <div class="canvas-container" style="position: relative; height: 450px; width: 100%;">
                     <canvas id="mainAnalyticsChart"></canvas>
                 </div>
             </div>
         </section>
+
     </div>
 
     <script src="{{ url_for('static', filename='scripts/analytics.js') }}"></script>
 </body>
-</html>                        
+</html>

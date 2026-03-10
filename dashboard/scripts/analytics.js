@@ -82,11 +82,25 @@ async function fetchAndRender(type = 'bar') {
 }
 
 function updateSessionId() {
-    selectedSessionId = document.getElementById('sessionPicker').value;
-    // Force refresh with currently active button type
+    // 1. Capture the ID from the dropdown
+    const picker = document.getElementById('sessionPicker');
+    selectedSessionId = picker.value;
+    
+    // 2. Refresh the Main Chart (Bars/Line/Wheel)
+    // Detect which mode is active to keep the right chart type
     const activeBtn = document.querySelector('.selector-btn.active');
-    const type = activeBtn ? (activeBtn.innerText.toLowerCase().includes('wheel') ? 'doughnut' : 'bar') : 'bar';
+    const text = activeBtn ? activeBtn.innerText.toLowerCase() : 'bars';
+    let type = text.includes('wheel') ? 'doughnut' : (text.includes('flow') ? 'line' : 'bar');
+    
     fetchAndRender(type);
+
+    // 3. TRIGGER THE RIVER (The missing part)
+    const riverContainer = document.getElementById('river-container');
+    if (selectedSessionId !== 'all') {
+        updateAttentionRiver(selectedSessionId);
+    } else {
+        riverContainer.innerHTML = '<span style="color: #333;">Select a session to visualize flow...</span>';
+    }
 }
 
 function switchPattern(pattern) {
@@ -96,3 +110,43 @@ function switchPattern(pattern) {
 }
 
 window.onload = () => fetchAndRender('bar');
+// --- ATTENTION RIVER LOGIC ---
+function updateAttentionRiver(sessionId) {
+    const container = document.getElementById('river-container');
+    if (!container) return;
+
+    // Using relative path is safer for local Flask apps
+    fetch(`/api/history?id=${sessionId}`)
+        .then(res => res.json())
+        .then(data => {
+            // Your logic remains the same...
+            const s = data.raw_history.find(r => r[0] == sessionId);
+            if (!s) return;
+
+            const switches = s[7] || 0;
+            const topApp = s[8] || "System";
+            const intensity = parseFloat(s[9]) || 1.0;
+
+            const riverWidth = Math.min(intensity * 20, 100); 
+
+            container.innerHTML = `
+                <div class="river-wrapper">
+                    <div class="main-flow" style="height: ${riverWidth}px; width: 300px;">
+                        <span class="node-label">${topApp.split('-').pop().trim()}</span>
+                        ${generateBranches(switches)}
+                    </div>
+                </div>
+            `;
+        })
+        .catch(err => console.error("River Fetch Error:", err));
+}
+
+function generateBranches(count) {
+    let branches = '';
+    const maxDisplayed = Math.min(count, 10); 
+    for (let i = 0; i < maxDisplayed; i++) {
+        const angle = (i - (maxDisplayed / 2)) * 30; 
+        branches += `<div class="leak-branch" style="width: 50px; transform: rotate(${angle}deg);"></div>`;
+    }
+    return branches;
+}
