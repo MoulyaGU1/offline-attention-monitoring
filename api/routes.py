@@ -1,6 +1,11 @@
 import os
+import threading
 from flask import app, jsonify, render_template, request
 import sqlite3
+from flask import Blueprint, jsonify, request
+from trackers.flow_lock import start_flow_lock
+
+from trackers.flow_lock import start_flow_lock
 
 def register_routes(app, orchestrator):
     @app.route("/")
@@ -65,7 +70,38 @@ def register_routes(app, orchestrator):
     def analytics_page():
         """Dedicated route for the Graph Selection & Pattern Analysis."""
         return render_template("analytics.html")
-
+    @app.route('/api/start_lock', methods=['POST'])
+    def start_lock():
+        try:
+            data = request.json
+            target_app = data.get('target_app', 'Visual Studio Code')
+            duration = data.get('duration', 30)
+        
+        # Launch lock in a separate thread so Flask doesn't hang
+            thread = threading.Thread(target=start_flow_lock, args=(target_app, duration))
+            thread.daemon = True
+            thread.start()
+        
+            return jsonify({"status": "success", "message": f"Locking to {target_app}"})
+        except Exception as e:
+            return jsonify({"status": "error", "message": str(e)}), 500
+    @app.route('/api/data', methods=['GET'])
+    def get_live_data():
+        try:
+        # Pull real-time counts from your engine
+        # If your engine uses a different name, adjust accordingly
+            metrics = orchestrator.get_realtime_status() 
+        
+            return jsonify({
+                "status": "success",
+                "active_app": metrics.get('active_app', 'System'),
+                "keyboard_count": metrics.get('keyboard', 0),
+                "mouse_count": metrics.get('mouse', 0),
+                "intensity": metrics.get('intensity', 0.0)
+            })
+        except Exception as e:
+            return jsonify({"status": "error", "message": str(e)}), 500
+    
     @app.route("/start-session", methods=["POST"])
     def start():
         return jsonify(orchestrator.start_session())
