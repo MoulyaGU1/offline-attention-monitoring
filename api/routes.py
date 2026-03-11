@@ -4,8 +4,11 @@ from flask import app, jsonify, render_template, request
 import sqlite3
 from flask import Blueprint, jsonify, request
 from trackers.flow_lock import start_flow_lock
+from flask import request, jsonify
+import trackers.flow_lock as fl  # Crucial: Import the module alias
 
 from trackers.flow_lock import start_flow_lock
+shield_enabled = True
 
 def register_routes(app, orchestrator):
     @app.route("/")
@@ -115,3 +118,24 @@ def register_routes(app, orchestrator):
         # Triggers data storage logic in the orchestrator
         report = orchestrator.end_session() 
         return jsonify(report)
+    
+    
+
+    @app.route('/api/toggle_shield', methods=['POST'])
+    def toggle_shield():
+        global shield_enabled
+        data = request.json
+        shield_enabled = data.get('enabled', True)
+        return jsonify({"status": "success", "shield_active": shield_enabled})
+    @app.route('/api/flow/pause', methods=['POST'])
+    def pause_shield():
+        data = request.json
+    # This directly changes the variable the 'while' loop is watching
+        fl.IS_PAUSED = data.get('paused', False) 
+        return jsonify({"status": "success", "paused": fl.IS_PAUSED})
+
+    @app.route('/api/flow/stop', methods=['POST'])
+    def stop_shield():
+    # This triggers the 'break' in the 'while' loop
+        fl.FORCE_STOP = True 
+        return jsonify({"status": "terminated"})

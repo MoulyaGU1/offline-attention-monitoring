@@ -118,13 +118,13 @@ function updateAttentionRiver(sessionId) {
             const s = data.raw_history.find(r => r[0] == sessionId);
             if (!s) return;
 
-            // 1. Split the stored apps by the pipe '|' character
+            // Mapping: r[7] = Total Switches (19), r[8] = App String, r[9] = Intensity
+            const totalSwitches = s[7] || 0;
             const appString = s[8] || "System";
             const appList = appString.split('|').map(a => a.trim());
             
-            // 2. The first app is the "Main Channel", others are "Branches"
             const mainApp = appList[0];
-            const distractions = appList.slice(1); // Everything else
+            const distractions = appList.slice(1); // Actual named apps
 
             const intensity = parseFloat(s[9]) || 1.0;
             const riverWidth = Math.min(intensity * 20, 100); 
@@ -136,26 +136,32 @@ function updateAttentionRiver(sessionId) {
                         <span class="node-label">${mainApp.split('-').pop()}</span>
                         
                         ${distractions.map((appName, i) => {
-                            const angle = (i - (distractions.length / 2)) * 30;
+                            const angle = (i - (totalSwitches / 2)) * 20;
                             return `
-                                <div class="leak-branch" style="width: 60px; transform: rotate(${angle}deg);">
-                                    <small style="position: absolute; right: -40px; color: #ff0055; font-size: 8px; transform: rotate(${-angle}deg);">
+                                <div class="leak-branch" style="width: 70px; transform: rotate(${angle}deg); border-top: 2px solid #ff0055;">
+                                    <small style="position: absolute; right: -45px; color: #ff0055; font-size: 8px; transform: rotate(${-angle}deg);">
                                         ${appName.split('-').pop()}
                                     </small>
                                 </div>`;
                         }).join('')}
+
+                        ${generateRemainingLeaks(totalSwitches, distractions.length)}
                     </div>
                 </div>
             `;
         });
 }
 
-function generateBranches(count) {
+function generateRemainingLeaks(total, namedCount) {
     let branches = '';
-    const maxDisplayed = Math.min(count, 10); 
-    for (let i = 0; i < maxDisplayed; i++) {
-        const angle = (i - (maxDisplayed / 2)) * 30; 
-        branches += `<div class="leak-branch" style="width: 50px; transform: rotate(${angle}deg);"></div>`;
+    const remaining = total - namedCount;
+    if (remaining <= 0) return '';
+
+    // Show up to 15 generic branches so it doesn't clutter the UI
+    const toShow = Math.min(remaining, 15); 
+    for (let i = 0; i < toShow; i++) {
+        const angle = ((i + namedCount) - (total / 2)) * 20; 
+        branches += `<div class="leak-branch" style="width: 40px; transform: rotate(${angle}deg); opacity: 0.4;"></div>`;
     }
     return branches;
 }

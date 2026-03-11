@@ -142,6 +142,30 @@ function generateBars(intensity) {
     text-overflow: ellipsis;
     display: block;
 }
+
+</style>
+<div class="river-card">
+    <h3>SESSION FLOW ANALYSIS</h3>
+    <div id="river-container" style="position: relative; width: 100%; height: 300px; background: #050505; border-radius: 12px; overflow: hidden;">
+        <canvas id="riverCanvas"></canvas>
+        <div id="river-overlay" style="position: absolute; top: 10px; left: 10px; color: #00ff88; font-family: 'Consolas', monospace; font-size: 12px;">
+            STABILITY: <span id="stability-val">0%</span>
+        </div>
+    </div>
+</div>
+
+<style>
+    .river-card {
+        background: #111;
+        padding: 20px;
+        border-radius: 15px;
+        border: 1px solid #222;
+        margin-top: 20px;
+    }
+    #riverCanvas {
+        width: 100%;
+        height: 100%;
+    }
 </style>
 </body>
 </html>

@@ -23,8 +23,13 @@
             📈 VISUAL ANALYTICS
         </button>
 
+        <button class="menu-btn shield-history-btn" onclick="window.location.href='/engage_history'">
+            🛡️ ENGAGE SESSION HISTORY
+            <span class="pulse-indicator"></span>
+        </button>
+
         <button class="menu-btn" onclick="window.location.href='/history'">
-            📊 VIEW SESSION HISTORY
+            📊 VIEW DATA HISTORY
         </button>
     </div>
 </div>
@@ -202,6 +207,42 @@ function engageFlowLock() {
             alert(`Flow Lock Engaged: Stay focused on ${app}`);
         }
     });
+}
+</script>
+<button class="btn-pause" onclick="togglePause()" id="pauseBtn">
+    <i class="fas fa-pause"></i> PAUSE
+</button>
+
+<button class="btn-delete" onclick="deleteLock()">
+    <i class="fas fa-trash"></i> DELETE LOCK
+</button>
+
+<script>
+let localPaused = false;
+
+async function togglePause() {
+    localPaused = !localPaused;
+    const btn = document.getElementById('pauseBtn');
+    
+    // Immediate UI Feedback
+    btn.innerHTML = localPaused ? '<i class="fas fa-play"></i> RESUME' : '<i class="fas fa-pause"></i> PAUSE';
+    btn.style.background = localPaused ? "#00ff88" : "#ffcc00";
+
+    await fetch('/api/flow/pause', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ paused: localPaused })
+    });
+}
+
+async function deleteLock() {
+    if(confirm("Terminate the Flow Shield protocol?")) {
+        const res = await fetch('/api/flow/stop', { method: 'POST' });
+        if(res.ok) {
+            alert("Lock Deleted.");
+            location.reload(); 
+        }
+    }
 }
 </script>
 
