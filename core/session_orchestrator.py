@@ -195,104 +195,70 @@ class SessionOrchestrator:
         return gravity_stats
 
     def end_session(self):
-        """Finalizes the session and maps the Attention Topology."""
         if not self.session_active:
-            print("[-] End Session failed: Session not active")
-            return {"status": "error"}
+            return {"status": "error", "message": "No active session"}
 
-        print("[*] Finalizing Attention Topology mapping...")
         try:
-            session_end = datetime.now()
+            # 1. Define session_end as a datetime object
+            session_end = datetime.now() 
             
-            # 1. TEMPORAL MAPPING
+            # 2. Define end_time as a formatted string (THIS FIXES THE ERROR)
+            end_time = session_end.strftime('%Y-%m-%d %H:%M:%S')
+            
+            # 3. Calculate duration
             duration = round((session_end - self.session_start).total_seconds(), 2)
-            print(f"[*] Session Timeline captured: {duration}s")
 
-            # 2. INTERACTION PATTERN ANALYSIS
-            # Labeling counts as 'Contextual Switches' instead of just 'jumps'
-            counts = {"keyboard": 0, "mouse_click": 0, "app_switch": 0}
-            for e in self.events:
-                t = getattr(e, 'event_type', None) or (e.get('event_type') if isinstance(e, dict) else None)
-                if t in counts: counts[t] += 1
-            print(f"[*] Interaction Patterns detected: {counts}")
-
-            # 3. BIOLOGICAL RECOVERY CAPTURE
-            recovery_time = 0
-            if hasattr(self, 'idle') and hasattr(self.idle, 'total_idle_time'):
-                recovery_time = self.idle.total_idle_time
-            print(f"[*] Recovery Segment captured: {recovery_time}s")
-
-            # 4. INTERACTION DENSITY (Replaces 'Intensity')
-            density = 1.0
-            if hasattr(self, 'attention_engine'):
-                density = getattr(self.attention_engine, 'last_score', 1.0)
-            print(f"[*] Interaction Density: {density}x")
-
-            # 5. ATTENTION GRAVITY (Identify Primary Context)
-            gravity = self.get_manual_gravity()
-            if gravity:
-                # Identifies the app that 'pulled' the most attention
-                primary_gravity = max(gravity, key=gravity.get)
-            else:
-                primary_gravity = "General Context"
-
-            # 6. NON-JUDGMENTAL DATA PACKAGE
             db_data = {
                 "start": self.session_start.strftime('%Y-%m-%d %H:%M:%S'),
-                "end": session_end.strftime('%Y-%m-%d %H:%M:%S'),
+                "end": end_time,  # Use the variable we just defined
                 "duration": duration,
-                "keys": counts["keyboard"],
-                "clicks": counts["mouse_click"],
+                "keys": self.key_count,
+                "clicks": self.click_count,
                 "dist": round(self.total_mouse_distance, 1),
-                "switches": counts["app_switch"],  # Contextual Fragmentation
-                "gravity": primary_gravity,        # Attention Pull
-                "density": round(density, 2),      # Interaction Burstiness
-                "recovery": round(recovery_time, 2) # Cognitive Rest
+                "switches": self.app_switches,
+                "gravity": self.last_app,
+                "density": 1.0,
+                "recovery": 0.0
             }
 
-            self.save_to_local_db(db_data)
-            self.session_active = False
-            return {"status": "stored"}
+            # 4. Save to DB and get the ID
+            new_id = self.save_to_local_db(db_data)
+            
+            self.session_active = False 
+            
+            if new_id:
+                return {"status": "success", "id": new_id}
+            return {"status": "error", "message": "DB Save Failed"}
 
         except Exception as e:
-            print(f"[-] CRASH IN topology_mapping: {e}")
-            import traceback
-            traceback.print_exc() 
+            print(f"[-] Error: {e}")
             return {"status": "error"}
-
     def save_to_local_db(self, data):
-        """Persists the session to the Local Data Repository on this Lenovo machine."""
         try:
-            # Absolute path to prevent OneDrive ghosting
+        # Use the exact path shown in your VS Code screenshot
             db_path = r"C:\Users\lenovo\OneDrive\Documents\Desktop\Moulya\attention-mapping-tool\attention_history.db"
             conn = sqlite3.connect(db_path)
             cursor = conn.cursor()
-            
-            # Map the non-judgmental keys to your existing database columns
+        
             cursor.execute('''
                 INSERT INTO session_history 
                 (start_time, end_time, duration, total_keys, total_clicks, 
-                 mouse_distance, app_jumps, top_app, average_intensity, idle_duration)
+                mouse_distance, app_jumps, top_app, average_intensity, idle_duration)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
-                data['start'],    # start_time
-                data['end'],      # end_time
-                data['duration'], # duration
-                data['keys'],     # total_keys
-                data['clicks'],   # total_clicks
-                data['dist'],     # mouse_distance
-                data['switches'], # app_jumps (Contextual Switches)
-                data['gravity'],  # top_app (Primary Gravity)
-                data['density'],  # average_intensity (Interaction Density)
-                data['recovery']  # idle_duration (Recovery Segment)
+                data['start'], data['end'], data['duration'], data['keys'], 
+                data['clicks'], data['dist'], data['switches'], 
+                data['gravity'], data['density'], data['recovery']
             ))
-            
-            conn.commit()
+        
+            new_id = cursor.lastrowid
+            conn.commit() # CRITICAL: This pushes data to the file
             conn.close()
-            print("[+++] SUCCESS: Attention Topology saved to Local Node.")
+            print(f"✅ DATA SECURED: Session #{new_id} is now on disk.")
+            return new_id
         except Exception as e:
-            print(f"[---] SQL REPOSITORY ERROR: {e}")
-
+            print(f"❌ DATABASE FAILURE: {e}")
+            return None
     # --- MUST BE ALIGNED WITH 'def save_to_local_db' ---
     def generate_analysis(self, session_end):
         """Computes the final stability and duration."""

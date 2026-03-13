@@ -149,8 +149,6 @@
             </div>
             
         </section>
-       <div id="attentionFingerprint" style="margin-top: 15px; border-top: 1px solid #222; padding-top: 15px;">
-    <h4 style="color: #00ff88; font-family: 'Consolas', monospace; font-size: 0.9rem;">🧬 ATTENTION DNA SIGNATURE</h4>
     
     
 
@@ -167,6 +165,103 @@
                     </div>
             </div>
         </section>
+        <div class="card persistence-card" style="background: #080808; border: 1px solid #1a1a1a; padding: 20px; border-radius: 12px; position: relative;">
+    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <span style="font-size: 1.2rem;">🎯</span>
+            <h4 style="color: #00ff88; margin: 0; font-size: 0.8rem; letter-spacing: 1px; text-transform: uppercase;">Persistence Heatmap</h4>
+        </div>
+        <button onclick="clearHeatmap()" style="background: transparent; border: 1px solid #333; color: #555; font-size: 9px; padding: 2px 8px; border-radius: 3px; cursor: pointer;">RESET MAP</button>
+    </div>
+
+    <div id="heatmap-canvas-wrapper" style="width: 100%; height: 250px; background: #000; border: 1px solid #111; border-radius: 8px; position: relative; overflow: hidden;">
+        <canvas id="persistenceCanvas" style="width: 100%; height: 100%;"></canvas>
+        <div id="coordinate-overlay" style="position: absolute; bottom: 5px; right: 10px; color: #222; font-family: monospace; font-size: 9px;">X: 0 Y: 0</div>
+    </div>
+
+    <div class="card-footer" style="margin-top: 10px; display: flex; justify-content: space-between;">
+        <small style="color: #444; font-size: 10px;">DARKER SPOTS = HIGHER COGNITIVE PERSISTENCE</small>
+        <small id="clickCountDisplay" style="color: #00ff88; font-size: 10px;">0 IMPACTS</small>
+    </div>
+</div>
+        
+
+
+<script>
+/**
+ * THE CUMULATIVE BURNING ENGINE
+ */
+const pCanvas = document.getElementById('persistenceCanvas');
+const pCtx = pCanvas.getContext('2d');
+let totalImpacts = 0;
+
+// CONFIG: spotRadius is size, impactAlpha is the "speed" of darkening
+const spotRadius = 14; 
+const impactAlpha = 0.12; 
+
+function initPersistenceMap() {
+    const wrapper = document.getElementById('heatmap-canvas-wrapper');
+    pCanvas.width = wrapper.clientWidth;
+    pCanvas.height = wrapper.clientHeight;
+    // We do not clear the rect so the session data persists
+}
+
+function recordImpact(x, y) {
+    totalImpacts++;
+    const display = document.getElementById('clickCountDisplay');
+    if(display) display.innerText = `${totalImpacts} IMPACTS DETECTED`;
+
+    // 1. Create Radial Heat Gradient
+    const gradient = pCtx.createRadialGradient(x, y, 0, x, y, spotRadius);
+    gradient.addColorStop(0, `rgba(0, 255, 136, ${impactAlpha})`);
+    gradient.addColorStop(1, 'rgba(0, 255, 136, 0)');
+
+    // 2. THE DARKENING LOGIC: 'lighter' adds color values cumulatively
+    pCtx.globalCompositeOperation = 'lighter';
+    pCtx.fillStyle = gradient;
+
+    pCtx.beginPath();
+    pCtx.arc(x, y, spotRadius, 0, Math.PI * 2);
+    pCtx.fill();
+}
+
+/**
+ * GLOBAL DETECTOR: Scaled to fit the card
+ */
+window.addEventListener('mousedown', (e) => {
+    // Only track if a session is currently active
+    const startBtn = document.getElementById('startBtn');
+    if (startBtn && startBtn.disabled) {
+        
+        // Calculate scaling factors (Screen Size to Card Canvas Size)
+        const scaleX = pCanvas.width / window.innerWidth;
+        const scaleY = pCanvas.height / window.innerHeight;
+        
+        // Map global click to local canvas coordinates
+        const canvasX = e.clientX * scaleX;
+        const canvasY = e.clientY * scaleY;
+
+        recordImpact(canvasX, canvasY);
+    }
+});
+
+// Coordinate Tracking for UI
+window.addEventListener('mousemove', (e) => {
+    const overlay = document.getElementById('coordinate-overlay');
+    if(overlay) overlay.innerText = `X: ${e.clientX} Y: ${e.clientY}`;
+});
+
+function clearHeatmap() {
+    pCtx.globalCompositeOperation = 'source-over';
+    pCtx.clearRect(0, 0, pCanvas.width, pCanvas.height);
+    totalImpacts = 0;
+    document.getElementById('clickCountDisplay').innerText = `0 IMPACTS DETECTED`;
+}
+
+// Ensure responsiveness
+window.addEventListener('resize', initPersistenceMap);
+initPersistenceMap();
+</script>
 
       
     </div>

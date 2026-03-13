@@ -25,13 +25,28 @@
                 <th>Context Switches</th>
                 <th>Primary Gravity</th>
                 <th style="width: 150px;">Interaction Bursts</th>
-                <th>Density</th>
+                <img src="{{ display_url }}" style="border: 1px solid #00ff88; width: 300px;">
+
             </tr>
         </thead>
         <tbody id="historyBody"></tbody>
     </table>
 </section>
-
+{% for session in sessions %}
+<div class="session-card" style="border-left: 4px solid #00ff88; margin-bottom: 20px; padding: 15px; background: #111;">
+    <h3 style="color: #00ff88;">Session #{{ session.id }}</h3>
+    <p>Focus Level: {{ session.average_intensity }}%</p>
+    
+    {% if session.heatmap_url %}
+        <div class="heatmap-container">
+            <p style="color: #666; font-size: 0.8rem;">ATTENTION THERMAL MAP:</p>
+            <img src="{{ session.heatmap_url }}" style="width: 100%; max-width: 400px; border: 1px solid #333; border-radius: 8px; filter: contrast(1.2);">
+        </div>
+    {% else %}
+        <p style="color: #ff4444; font-size: 0.9rem;">⚠️ No heatmap captured for this session.</p>
+    {% endif %}
+</div>
+{% endfor %}
 <script>
 async function loadHistory() {
     try {

@@ -1,7 +1,6 @@
-// --- 1. GLOBAL STATE (Consolidated Declarations) ---
-let sessionHistory = []; 
+let sessionHistory = []; // Keep this one
 let timerInterval = null;
-let isCameraOn = false;
+
 
 /**
  * THE MASTER HEARTBEAT: Updates data and network status
@@ -41,10 +40,10 @@ async function updateDashboard() {
             const stateEl = document.getElementById('focusState');
             if (data.is_idle) {
                 stateEl.innerText = "IDLE / BREAK";
-                stateEl.style.color = "#ffcc00"; 
+                stateEl.style.color = "#ffcc00"; // Alert Yellow for inactivity
             } else {
                 stateEl.innerText = (data.state || "STABLE").toUpperCase();
-                stateEl.style.color = "#00ff88"; 
+                stateEl.style.color = "#00ff88"; // Standard Matrix Green
             }
 
             // 6. Zero-Cloud Compliance Real-time Check
@@ -64,19 +63,17 @@ async function updateDashboard() {
     } catch (err) {
         console.log("Waiting for local backend on 127.0.0.1...");
     }
-}
-
-function updateNetworkStatus() {
+}function updateNetworkStatus() {
     const dot = document.querySelector('.status-dot');
     const text = document.getElementById('offline-status');
 
     if (navigator.onLine) {
         text.innerText = "LOCAL NODE: ONLINE (SYNCED)";
-        dot.style.background = "#3498db"; 
+        dot.style.background = "#3498db"; // Blue
         dot.style.boxShadow = "0 0 10px #3498db";
     } else {
         text.innerText = "SECURE OFFLINE NODE (AIR-GAPPED)";
-        dot.style.background = "#00ff88"; 
+        dot.style.background = "#00ff88"; // Green
         dot.style.boxShadow = "0 0 10px #00ff88";
     }
 }
@@ -90,12 +87,18 @@ function updateGravityMap(gravityData) {
 
     container.innerHTML = ''; 
 
+    // 1. Calculate Total Usage locally for percentage calculation
     const totalUsage = Object.values(gravityData).reduce((a, b) => a + b, 0);
+
+    // OFFLINE SORTING: Sort by usage count stored in local SQLite
     const sortedApps = Object.entries(gravityData).sort((a, b) => b[1] - a[1]);
 
     sortedApps.forEach(([app, count]) => {
         const item = document.createElement('div');
+        
+        // 2. Logic for Visual Indicators
         const gravityWidth = Math.min(count * 5, 100); 
+        // Usage percentage relative to total session activity
         const usagePercentage = totalUsage > 0 ? ((count / totalUsage) * 100).toFixed(1) : 0;
 
         item.innerHTML = `
@@ -115,7 +118,6 @@ function updateGravityMap(gravityData) {
         container.appendChild(item);
     });
 }
-
 // --- 2. SESSION CONTROLS ---
 async function startSession() {
     const response = await fetch('/start-session', { method: 'POST' });
@@ -124,66 +126,97 @@ async function startSession() {
     if (result.status === "session_started") {
         document.getElementById('startBtn').disabled = true;
         document.getElementById('startBtn').innerText = "TRACKING...";
+        // Only one interval to prevent lag
         if (!timerInterval) timerInterval = setInterval(updateDashboard, 1000);
     }
 }
 
 async function endSession() {
-    if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
-    
+    const endBtn = document.getElementById('endBtn'); // Adjust ID to match your HTML
+    if (endBtn.disabled) return; 
+
+    endBtn.disabled = true; // Stop multiple clicks
+    endBtn.innerText = "Saving...";
+
     try {
-        const response = await fetch('/end-session', { method: 'POST' });
-        const report = await response.json();
-        
-        document.getElementById('startBtn').disabled = false;
-        document.getElementById('startBtn').innerText = "START SESSION";
-        document.getElementById('focusState').innerText = "COMPLETE";
+        const res = await fetch('/end-session', { method: 'POST' });
+        const data = await res.json();
 
-        if (report.timeline) {
-            sessionHistory = report.timeline; // Assigned, not redeclared
-            const slider = document.getElementById('replaySlider');
-            slider.max = sessionHistory.length - 1;
-            slider.value = 0; 
+        if (data.status === "success" || data.status === "stored") {
+            // ONLY upload heatmap if session was successfully closed
+            await uploadHeatmap(data.id || data.session_id);
+        } else {
+            console.error("Backend refused end-session:", data.message);
+            endBtn.disabled = false;
+            endBtn.innerText = "End Session";
         }
-
-        alert(`Session Ended Successfully!\nStability: ${report.stability_score || 'N/A'}`);
     } catch (err) {
-        console.error("End session failed", err);
+        console.error("Network Error:", err);
+        endBtn.disabled = false;
     }
 }
+function uploadHeatmapToDB(sessionId) {
+    const canvas = document.getElementById('persistenceCanvas');
+    canvas.toBlob(async (blob) => {
+        const formData = new FormData();
+        formData.append('image', blob);
+        formData.append('session_id', sessionId);
 
+        await fetch('/api/store_heatmap_blob', {
+            method: 'POST',
+            body: formData
+        });
+        window.location.href = '/history';
+    }, 'image/png');
+}
 // --- 3. INITIALIZE ---
 document.getElementById('startBtn').addEventListener('click', startSession);
 document.getElementById('endBtn').addEventListener('click', endSession);
 
+// Run network check immediately on load
 updateNetworkStatus();
-
+// Inside your updateDashboard loop:
+if (data.status === 'active') {
+    // 1. Draw the Topology Line
+    if (window.updateChart && data.timeline) {
+        updateChart(data.timeline);
+    }
+    
+    // 2. Draw the Gravity Bars
+    if (window.updateGravityMap && data.gravity_map) {
+        updateGravityMap(data.gravity_map);
+    }
+}
 // Ensure this matches your end session button ID
 document.getElementById('endBtn').onclick = async () => {
     const response = await fetch('/end-session', { method: 'POST' });
     const result = await response.json();
     if (result.status === 'stored') {
         alert("Session saved to local repository.");
-        window.location.reload(); 
+        window.location.reload(); // Force refresh to show empty dashboard
     }
 };
-
 function toggleMenu() {
     const menu = document.getElementById("sideMenu");
     menu.classList.toggle("open");
 }
-
 async function loadHistory() {
     try {
         const response = await fetch('/api/history');
         const data = await response.json();
         const body = document.getElementById('historyBody');
+        
+        // --- THE BRIDGE ---
+        // data is now { "distribution": [...], "raw_history": [...] }
+        // We MUST use data.raw_history to get the list of rows for the table.
         const sessions = data.raw_history || data; 
 
         if (!body) return;
-        body.innerHTML = ''; 
+        body.innerHTML = ''; // Clear "Awaiting Data" message
 
         body.innerHTML = sessions.map(row => {
+            // row[1]: Timestamp, row[3]: Duration, row[7]: Switches, 
+            // row[8]: App Name, row[9]: Density, row[10]: Idle/Recovery
             const startTime = row[1];
             const duration = Math.floor(row[3]) || 0;
             const jumps = row[7] || 0;
@@ -218,6 +251,7 @@ function renderGravityOffline(gravityData) {
     sortedApps.forEach(([app, count]) => {
         const item = document.createElement('div');
         item.className = "gravity-item-container";
+        // Calculate gravity percentage locally
         const gravityWidth = Math.min(count * 5, 100); 
 
         item.innerHTML = `
@@ -234,42 +268,117 @@ function renderGravityOffline(gravityData) {
 }
 
 function updateChartOffline(timeline) {
+    // Process timestamps locally without moment.js or external libs
     const labels = Object.keys(timeline).map(t => t.split(' ').pop()); 
     const values = Object.values(timeline);
+
     attentionChart.data.labels = labels.slice(-30);
     attentionChart.data.datasets[0].data = values.slice(-30);
+    
+    // 'none' prevents animation loops that drain CPU when offline
     attentionChart.update('none'); 
 }
+let isCameraOn = false;
 
+async function toggleCamera() {
+    const btn = document.getElementById('cameraToggleBtn');
+    const status = document.getElementById('cameraStatus');
+    
+    // Toggle State
+    isCameraOn = !isCameraOn;
 
-function generateAttentionPattern() {
-    if (!sessionHistory || sessionHistory.length === 0) return "Awaiting Pattern...";
+    try {
+        const response = await fetch('/api/toggle_camera', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ enabled: isCameraOn })
+        });
 
-    let pattern = [];
-    let currentBlock = { state: null, startTime: 0 };
+        const data = await response.json();
 
-    sessionHistory.forEach((point, index) => {
-        // Categorize the state
-        let state = point.val > 0.7 ? "Focus" : point.val > 0.3 ? "Switch" : "Idle";
-
-        if (state !== currentBlock.state) {
-            // If the state changed, save the previous block
-            if (currentBlock.state !== null) {
-                let duration = index - currentBlock.startTime;
-                // Only record blocks longer than 5 seconds to avoid "noise"
-                if (duration > 5) {
-                    pattern.push(`${currentBlock.state} ${Math.floor(duration / 60)}m ${duration % 60}s`);
-                }
-            }
-            // Start a new block
-            currentBlock = { state: state, startTime: index };
+        if (isCameraOn) {
+            // Update UI to Active State
+            btn.innerText = "TURN OFF CAMERA";
+            btn.style.borderColor = "#00ff88";
+            btn.style.color = "#00ff88";
+            status.innerText = "[ STATUS: MONITORING ]";
+            status.style.color = "#00ff88";
+            console.log("AI Biometric Monitoring: ACTIVATED");
+        } else {
+            // Update UI to Inactive State
+            btn.innerText = "TURN ON CAMERA";
+            btn.style.borderColor = "#ff0055";
+            btn.style.color = "#ff0055";
+            status.innerText = "[ STATUS: INACTIVE ]";
+            status.style.color = "#444";
+            console.log("AI Biometric Monitoring: DEACTIVATED");
         }
-    });
 
-    // Add the final block
-    let finalDuration = sessionHistory.length - currentBlock.startTime;
-    pattern.push(`${currentBlock.state} ${Math.floor(finalDuration / 60)}m ${finalDuration % 60}s`);
-
-    return pattern.join(" → ");
+    } catch (error) {
+        console.error("Camera Toggle Error:", error);
+        alert("Failed to connect to the Biometric Engine.");
+    }
 }
-// Add this inside your endSession() function after you get the report
+// dashboard.js or index.html script tag
+async function handleEndSession() {
+    // 1. Close the session metrics first
+    const response = await fetch('/end-session', { method: 'POST' });
+    const sessionData = await response.json();
+    
+    // Ensure we have the ID to link the image to
+    const sessionId = sessionData.id || sessionData.session_id;
+
+    if (sessionId) {
+        // 2. Grab the Thermal Canvas element
+        const canvas = document.getElementById('persistenceCanvas');
+        
+        // 3. Convert to Blob (Binary) and send to SQLite
+        canvas.toBlob(async (blob) => {
+            const formData = new FormData();
+            formData.append('image', blob);
+            formData.append('session_id', sessionId);
+
+            const saveRes = await fetch('/api/store_heatmap_blob', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (saveRes.ok) {
+                console.log("Heatmap Binary successfully locked to DB.");
+                window.location.href = '/history'; // Redirect to see the result
+            }
+        }, 'image/png');
+    }
+}
+async function stopSession() {
+    // 1. Tell Python to close the session and get the ID
+    const response = await fetch('/end-session', { method: 'POST' });
+    const data = await response.json();
+
+    if (data.status === "success" && data.session_id) {
+        console.log("Session ID received:", data.session_id);
+        
+        // 2. Capture the Heatmap Canvas
+        const canvas = document.getElementById('persistenceCanvas');
+        
+        // 3. Convert Canvas to BLOB (Binary)
+        canvas.toBlob(async (blob) => {
+            const formData = new FormData();
+            formData.append('image', blob);
+            formData.append('session_id', data.session_id);
+
+            // 4. Send the BLOB to the specialized storage route
+            const uploadRes = await fetch('/api/store_heatmap_blob', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (uploadRes.ok) {
+                console.log("✅ Heatmap BLOB stored successfully.");
+                window.location.href = '/history'; // Redirect to see the result
+            }
+        }, 'image/png');
+    } else {
+        alert("Could not finalize session: " + data.message);
+    }
+}
