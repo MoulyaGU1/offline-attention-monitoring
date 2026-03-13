@@ -1,5 +1,7 @@
-// --- 1. GLOBAL STATE ---
+// --- 1. GLOBAL STATE (Consolidated Declarations) ---
+let sessionHistory = []; 
 let timerInterval = null;
+let isCameraOn = false;
 
 /**
  * THE MASTER HEARTBEAT: Updates data and network status
@@ -39,10 +41,10 @@ async function updateDashboard() {
             const stateEl = document.getElementById('focusState');
             if (data.is_idle) {
                 stateEl.innerText = "IDLE / BREAK";
-                stateEl.style.color = "#ffcc00"; // Alert Yellow for inactivity
+                stateEl.style.color = "#ffcc00"; 
             } else {
                 stateEl.innerText = (data.state || "STABLE").toUpperCase();
-                stateEl.style.color = "#00ff88"; // Standard Matrix Green
+                stateEl.style.color = "#00ff88"; 
             }
 
             // 6. Zero-Cloud Compliance Real-time Check
@@ -62,17 +64,19 @@ async function updateDashboard() {
     } catch (err) {
         console.log("Waiting for local backend on 127.0.0.1...");
     }
-}function updateNetworkStatus() {
+}
+
+function updateNetworkStatus() {
     const dot = document.querySelector('.status-dot');
     const text = document.getElementById('offline-status');
 
     if (navigator.onLine) {
         text.innerText = "LOCAL NODE: ONLINE (SYNCED)";
-        dot.style.background = "#3498db"; // Blue
+        dot.style.background = "#3498db"; 
         dot.style.boxShadow = "0 0 10px #3498db";
     } else {
         text.innerText = "SECURE OFFLINE NODE (AIR-GAPPED)";
-        dot.style.background = "#00ff88"; // Green
+        dot.style.background = "#00ff88"; 
         dot.style.boxShadow = "0 0 10px #00ff88";
     }
 }
@@ -86,18 +90,12 @@ function updateGravityMap(gravityData) {
 
     container.innerHTML = ''; 
 
-    // 1. Calculate Total Usage locally for percentage calculation
     const totalUsage = Object.values(gravityData).reduce((a, b) => a + b, 0);
-
-    // OFFLINE SORTING: Sort by usage count stored in local SQLite
     const sortedApps = Object.entries(gravityData).sort((a, b) => b[1] - a[1]);
 
     sortedApps.forEach(([app, count]) => {
         const item = document.createElement('div');
-        
-        // 2. Logic for Visual Indicators
         const gravityWidth = Math.min(count * 5, 100); 
-        // Usage percentage relative to total session activity
         const usagePercentage = totalUsage > 0 ? ((count / totalUsage) * 100).toFixed(1) : 0;
 
         item.innerHTML = `
@@ -117,6 +115,7 @@ function updateGravityMap(gravityData) {
         container.appendChild(item);
     });
 }
+
 // --- 2. SESSION CONTROLS ---
 async function startSession() {
     const response = await fetch('/start-session', { method: 'POST' });
@@ -125,7 +124,6 @@ async function startSession() {
     if (result.status === "session_started") {
         document.getElementById('startBtn').disabled = true;
         document.getElementById('startBtn').innerText = "TRACKING...";
-        // Only one interval to prevent lag
         if (!timerInterval) timerInterval = setInterval(updateDashboard, 1000);
     }
 }
@@ -140,6 +138,14 @@ async function endSession() {
         document.getElementById('startBtn').disabled = false;
         document.getElementById('startBtn').innerText = "START SESSION";
         document.getElementById('focusState').innerText = "COMPLETE";
+
+        if (report.timeline) {
+            sessionHistory = report.timeline; // Assigned, not redeclared
+            const slider = document.getElementById('replaySlider');
+            slider.max = sessionHistory.length - 1;
+            slider.value = 0; 
+        }
+
         alert(`Session Ended Successfully!\nStability: ${report.stability_score || 'N/A'}`);
     } catch (err) {
         console.error("End session failed", err);
@@ -150,50 +156,34 @@ async function endSession() {
 document.getElementById('startBtn').addEventListener('click', startSession);
 document.getElementById('endBtn').addEventListener('click', endSession);
 
-// Run network check immediately on load
 updateNetworkStatus();
-// Inside your updateDashboard loop:
-if (data.status === 'active') {
-    // 1. Draw the Topology Line
-    if (window.updateChart && data.timeline) {
-        updateChart(data.timeline);
-    }
-    
-    // 2. Draw the Gravity Bars
-    if (window.updateGravityMap && data.gravity_map) {
-        updateGravityMap(data.gravity_map);
-    }
-}
+
 // Ensure this matches your end session button ID
 document.getElementById('endBtn').onclick = async () => {
     const response = await fetch('/end-session', { method: 'POST' });
     const result = await response.json();
     if (result.status === 'stored') {
         alert("Session saved to local repository.");
-        window.location.reload(); // Force refresh to show empty dashboard
+        window.location.reload(); 
     }
 };
+
 function toggleMenu() {
     const menu = document.getElementById("sideMenu");
     menu.classList.toggle("open");
 }
+
 async function loadHistory() {
     try {
         const response = await fetch('/api/history');
         const data = await response.json();
         const body = document.getElementById('historyBody');
-        
-        // --- THE BRIDGE ---
-        // data is now { "distribution": [...], "raw_history": [...] }
-        // We MUST use data.raw_history to get the list of rows for the table.
         const sessions = data.raw_history || data; 
 
         if (!body) return;
-        body.innerHTML = ''; // Clear "Awaiting Data" message
+        body.innerHTML = ''; 
 
         body.innerHTML = sessions.map(row => {
-            // row[1]: Timestamp, row[3]: Duration, row[7]: Switches, 
-            // row[8]: App Name, row[9]: Density, row[10]: Idle/Recovery
             const startTime = row[1];
             const duration = Math.floor(row[3]) || 0;
             const jumps = row[7] || 0;
@@ -228,7 +218,6 @@ function renderGravityOffline(gravityData) {
     sortedApps.forEach(([app, count]) => {
         const item = document.createElement('div');
         item.className = "gravity-item-container";
-        // Calculate gravity percentage locally
         const gravityWidth = Math.min(count * 5, 100); 
 
         item.innerHTML = `
@@ -245,13 +234,42 @@ function renderGravityOffline(gravityData) {
 }
 
 function updateChartOffline(timeline) {
-    // Process timestamps locally without moment.js or external libs
     const labels = Object.keys(timeline).map(t => t.split(' ').pop()); 
     const values = Object.values(timeline);
-
     attentionChart.data.labels = labels.slice(-30);
     attentionChart.data.datasets[0].data = values.slice(-30);
-    
-    // 'none' prevents animation loops that drain CPU when offline
     attentionChart.update('none'); 
 }
+
+
+function generateAttentionPattern() {
+    if (!sessionHistory || sessionHistory.length === 0) return "Awaiting Pattern...";
+
+    let pattern = [];
+    let currentBlock = { state: null, startTime: 0 };
+
+    sessionHistory.forEach((point, index) => {
+        // Categorize the state
+        let state = point.val > 0.7 ? "Focus" : point.val > 0.3 ? "Switch" : "Idle";
+
+        if (state !== currentBlock.state) {
+            // If the state changed, save the previous block
+            if (currentBlock.state !== null) {
+                let duration = index - currentBlock.startTime;
+                // Only record blocks longer than 5 seconds to avoid "noise"
+                if (duration > 5) {
+                    pattern.push(`${currentBlock.state} ${Math.floor(duration / 60)}m ${duration % 60}s`);
+                }
+            }
+            // Start a new block
+            currentBlock = { state: state, startTime: index };
+        }
+    });
+
+    // Add the final block
+    let finalDuration = sessionHistory.length - currentBlock.startTime;
+    pattern.push(`${currentBlock.state} ${Math.floor(finalDuration / 60)}m ${finalDuration % 60}s`);
+
+    return pattern.join(" → ");
+}
+// Add this inside your endSession() function after you get the report

@@ -81,7 +81,30 @@ async function loadHistory() {
         console.error("History Load Error:", err);
     }
 }
+async function loadEngageHistory() {
+    const response = await fetch('/api/engage/history');
+    const data = await response.json();
+    const container = document.getElementById('history-list');
 
+    data.forEach(session => {
+        const card = document.createElement('div');
+        card.className = "history-card";
+        card.innerHTML = `
+            <div class="session-info">
+                <strong>${session.app_name}</strong>
+                <span>${session.timestamp}</span>
+            </div>
+            <div class="session-stats">
+                <span>⏱️ ${session.duration_mins}m</span>
+                <span>⚠️ ${session.breaches} Breaches</span>
+                <span class="score" style="color: ${session.intensity_score > 70 ? '#00ff88' : '#ff0055'}">
+                    SCORE: ${session.intensity_score}%
+                </span>
+            </div>
+        `;
+        container.appendChild(card);
+    });
+}
 /**
  * GENERATE TOPOLOGY BARS
  * Visualizes interaction bursts in the table row.
@@ -167,5 +190,6 @@ function generateBars(intensity) {
         height: 100%;
     }
 </style>
+
 </body>
 </html>

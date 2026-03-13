@@ -1,134 +1,158 @@
 import time
 import threading
 import pygetwindow as gw
-from win10toast import ToastNotifier
 import winsound
 import tkinter as tk
+import win32gui
+import win32con
+from ctypes import windll
 
-# --- GLOBAL STATE & CONTROL FLAGS ---
-toaster = ToastNotifier()
-SHIELD_ENABLED = True
-IS_PAUSED = False
+# --- GLOBAL FLAGS (Keep these at the top) ---
 FORCE_STOP = False
 REMAINING_SECONDS = 0
+IS_VISIBLE = False     
+IS_BREACHED = False  
 
 class FlowShield:
     def __init__(self):
+        try:
+            windll.shcore.SetProcessDpiAwareness(1)
+        except:
+            pass
+
         self.root = tk.Tk()
         self.root.overrideredirect(True)
         self.root.attributes("-topmost", True)
-        self.root.attributes("-transparentcolor", "black")
-        self.root.config(bg="black")
-        
-        # Hide the window immediately on startup
-        self.root.attributes("-alpha", 0.0) 
         
         self.screen_w = self.root.winfo_screenwidth()
         self.screen_h = self.root.winfo_screenheight()
+        
         self.root.geometry(f"{self.screen_w}x{self.screen_h}+0+0")
         
-        try:
-            from ctypes import windll
-            hwnd = windll.user32.GetParent(self.root.winfo_id())
-            style = windll.user32.GetWindowLongW(hwnd, -20)
-            windll.user32.SetWindowLongW(hwnd, -20, style | 0x80000 | 0x20)
-        except: pass
+        # Windows Click-Through API
+        hwnd = win32gui.GetParent(self.root.winfo_id())
+        style = win32gui.GetWindowLong(hwnd, win32con.GWL_EXSTYLE)
+        win32gui.SetWindowLong(hwnd, win32con.GWL_EXSTYLE, style | win32con.WS_EX_LAYERED | win32con.WS_EX_TRANSPARENT)
 
-        self.border = tk.Frame(self.root, highlightthickness=10, highlightbackground="#00ff88", bg="black")
-        self.border.pack(fill="both", expand=True)
+        self.trans_key = "#010101" 
+        self.canvas = tk.Canvas(self.root, width=self.screen_w, height=self.screen_h, 
+                               bg=self.trans_key, highlightthickness=0)
+        self.canvas.pack()
+        self.root.attributes("-transparentcolor", self.trans_key)
 
-        self.timer_label = tk.Label(
-            self.border, text="00:00", fg="#00ff88", bg="black", 
-            font=("Consolas", 24, "bold")
-        )
-        self.timer_label.place(x=self.screen_w - 200, y=50)
+        # UI Elements
+        self.green_border = self.canvas.create_rectangle(10, 10, self.screen_w-10, self.screen_h-10, outline="#00ff88", width=10, state='hidden')
+        self.flicker_rect = self.canvas.create_rectangle(0, 50, self.screen_w, self.screen_h - 60, fill="#ff0055", state='hidden')
+        
+        # TIMER - Placed in the top right corner
+        self.canvas_timer = self.canvas.create_text(self.screen_w - 50, 40, text="00:00", fill="#00ff88", font=("Consolas", 38, "bold"), anchor="ne")
 
-    def update_hud(self, seconds, color):
-        mins, secs = divmod(seconds, 60)
-        self.timer_label.config(text=f"{mins:02d}:{secs:02d}", fg=color)
-        self.border.config(highlightbackground=color)
-        self.root.update()
+        self.flicker_toggle = False
+        self.update_ui_loop()
 
-    def trigger_glitch(self):
-        def flash():
-            for _ in range(3):
-                self.border.config(highlightbackground="#ff0055")
-                self.root.update()
-                time.sleep(0.08)
-                self.border.config(highlightbackground="black")
-                self.root.update()
-                time.sleep(0.04)
-            self.border.config(highlightbackground="#ff0055")
-        threading.Thread(target=flash, daemon=True).start()
+    def update_ui_loop(self):
+        global REMAINING_SECONDS, IS_VISIBLE, FORCE_STOP, IS_BREACHED
+        if IS_VISIBLE and not FORCE_STOP:
+            self.root.attributes("-alpha", 1.0)
+            self.root.lift()
+            mins, secs = divmod(REMAINING_SECONDS, 60)
+            self.canvas.itemconfig(self.canvas_timer, text=f"{mins:02d}:{secs:02d}")
 
-    def show_completion_popup(self, app_name):
-        popup = tk.Toplevel(self.root)
-        popup.overrideredirect(True)
-        popup.attributes("-topmost", True)
-        w, h = 400, 200
-        x, y = (self.screen_w // 2) - (w // 2), (self.screen_h // 2) - (h // 2)
-        popup.geometry(f"{w}x{h}+{x}+{y}")
-        popup.config(bg="#050505", highlightthickness=2, highlightbackground="#00ff88")
+            if IS_BREACHED:
+                self.flicker_toggle = not self.flicker_toggle
+                self.canvas.itemconfig(self.flicker_rect, state='normal' if self.flicker_toggle else 'hidden')
+                self.canvas.itemconfig(self.green_border, state='hidden')
+                self.canvas.itemconfig(self.canvas_timer, fill="#ff0055")
+            else:
+                self.canvas.itemconfig(self.flicker_rect, state='hidden')
+                self.canvas.itemconfig(self.green_border, state='normal')
+                self.canvas.itemconfig(self.canvas_timer, fill="#00ff88")
+        else:
+            self.root.attributes("-alpha", 0.0)
+        self.root.after(150, self.update_ui_loop)
 
-        tk.Label(popup, text="SESSION COMPLETED", fg="#00ff88", bg="#050505", font=("Consolas", 18, "bold")).pack(pady=20)
-        tk.Label(popup, text=f"Focus preserved on: {app_name}", fg="white", bg="#050505", font=("Consolas", 10)).pack(pady=5)
-        tk.Button(popup, text="[ DISMISS ]", bg="#00ff88", fg="#000", font=("Consolas", 10, "bold"), command=self.root.destroy).pack(pady=20)
-        winsound.PlaySound("SystemExit", winsound.SND_ALIAS)
+# --- HELPER FUNCTIONS (Must be outside the class) ---
+def play_ambulance_siren():
+    while IS_BREACHED and not FORCE_STOP:
+        winsound.Beep(1200, 200)
+        if not IS_BREACHED: break
+        winsound.Beep(800, 200)
 
-# --- GLOBAL SHIELD INSTANCE ---
-shield = None
+shield_app = None
+def start_gui_thread():
+    global shield_app
+    shield_app = FlowShield()
+    shield_app.root.mainloop()
 
-def run_shield_ui():
-    global shield
-    shield = FlowShield()
-    shield.root.mainloop()
+threading.Thread(target=start_gui_thread, daemon=True).start()
 
-threading.Thread(target=run_shield_ui, daemon=True).start()
-
-def start_flow_lock(committed_app, duration_mins):
-    global REMAINING_SECONDS, IS_PAUSED, FORCE_STOP
-    
+# --- THE FUNCTION YOUR SERVER IS LOOKING FOR ---
+def start_flow_lock(committed_apps, duration_mins):
+    global REMAINING_SECONDS, IS_VISIBLE, IS_BREACHED, FORCE_STOP
     FORCE_STOP = False
     REMAINING_SECONDS = int(duration_mins) * 60
-    target = committed_app.lower().strip()
+    target_list = [app.strip().lower() for app in committed_apps.split(',') if app.strip()]
+    target_list.extend(["attention mapping", "127.0.0.1", "localhost", "python"])
     
-    # ACTIVATE SHIELD VISIBILITY ONLY NOW
-    if shield:
-        shield.root.attributes("-alpha", 1.0)
-    
-    print(f"🔒 Flow Shield Engaged: {target}")
+    IS_VISIBLE = True
+    is_currently_sirening = False
 
-    while REMAINING_SECONDS > 0:
-        if FORCE_STOP:
-            if shield: shield.root.attributes("-alpha", 0.0)
-            break
-
-        if IS_PAUSED:
-            if shield: shield.update_hud(REMAINING_SECONDS, "#ffcc00")
-            time.sleep(1)
-            continue
-
+    while REMAINING_SECONDS > 0 and not FORCE_STOP:
         try:
             active_window = gw.getActiveWindow()
-            if not active_window or not active_window.title or target not in active_window.title.lower():
-                if shield: 
-                    shield.trigger_glitch()
-                    shield.update_hud(REMAINING_SECONDS, "#ff0055")
-                winsound.Beep(1000, 200)
+            title = active_window.title.lower() if (active_window and active_window.title) else "desktop"
+            if not any(app in title for app in target_list):
+                IS_BREACHED = True
+                if not is_currently_sirening:
+                    is_currently_sirening = True
+                    threading.Thread(target=play_ambulance_siren, daemon=True).start()
             else:
-                if shield: 
-                    shield.root.attributes("-alpha", 1.0)
-                    shield.update_hud(REMAINING_SECONDS, "#00ff88")
-
+                IS_BREACHED = False
+                is_currently_sirening = False
             time.sleep(1)
             REMAINING_SECONDS -= 1
         except:
             time.sleep(1)
+    IS_VISIBLE = False
+    IS_BREACHED = False
+# 1. Add this method inside your FlowShield class
+def show_completion(self):
+    """Triggers a high-visibility completion overlay."""
+    def create_overlay():
+        # Hide the flicker and border
+        self.canvas.itemconfig(self.flicker_rect, state='hidden')
+        self.canvas.itemconfig(self.green_border, state='hidden')
+        
+        # Create a semi-transparent dark overlay
+        self.root.attributes("-alpha", 0.9)
+        self.canvas.config(bg="#050505")
+        self.root.attributes("-transparentcolor", "") # Show the background
 
-    # --- SESSION END ---
-    if not FORCE_STOP:
-        if shield:
-            shield.update_hud(0, "#00e5ff") 
-            shield.show_completion_popup(committed_app)
-    else:
-        if shield: shield.root.attributes("-alpha", 0.0)
+        # Add "SESSION COMPLETED" Text in the center
+        self.canvas.create_text(
+            self.screen_w // 2, self.screen_h // 2 - 50,
+            text="🎯 SESSION COMPLETED",
+            fill="#00ff88",
+            font=("Consolas", 48, "bold")
+        )
+
+        # Add a sub-text message
+        self.canvas.create_text(
+            self.screen_w // 2, self.screen_h // 2 + 30,
+            text="Your focus session has been logged successfully.",
+            fill="white",
+            font=("Consolas", 18)
+        )
+
+        # Create a temporary button (using a canvas shape + text for click-through compatibility)
+        # Note: Since the window is click-through, we'll auto-close after 5 seconds
+        # or you can provide a keyboard shortcut instructions.
+        self.root.after(5000, lambda: self.root.attributes("-alpha", 0.0))
+
+    self.root.after(0, create_overlay)
+# trackers/flow_lock.py
+
+
+# ... other imports ...
+
+    

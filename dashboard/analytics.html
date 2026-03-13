@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <title>NeuroState | Visual Analytics</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles/main.css') }}">
-    <script src="{{ url_for('static', filename='scripts/chart.min.js') }}"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 
 <body class="analytics-view">
@@ -15,6 +15,11 @@
                 <div class="brand">
                     <h1 style="margin: 0;">PATTERN<span style="color: #00ff88;">ANALYSIS</span></h1>
                     <p style="margin: 0; font-size: 0.7rem; color: #555; letter-spacing: 2px;">OFFLINE TOPOLOGY ENGINE</p>
+                </div>
+
+                <div id="status-bar" style="display: flex; gap: 20px; background: #111; padding: 5px 20px; border-radius: 50px; border: 1px solid #222;">
+                    <div style="font-size: 11px; color: #666;">SHIFTS: <span id="fragmentationCount" style="color: #ff0055; font-weight: bold;">0</span></div>
+                    <div style="font-size: 11px; color: #666;">STATE: <span id="attentionState" style="color: #00ff88; font-weight: bold;">MAPPING...</span></div>
                 </div>
 
                 <div class="view-selector" style="display: flex; gap: 10px; align-items: center;">
@@ -32,14 +37,35 @@
                 </div>
             </div>
         </header>
+        <div id="patternText" style="color: #00ff88; font-family: monospace; font-size: 1rem; margin: 10px 0; background: rgba(0,255,136,0.05); padding: 12px; border-radius: 4px; border: 1px dashed #00ff88;">
+       <div class="fingerprint-card">
+    <div class="card-header">
+        <span class="icon">🧬</span>
+        <h4>ATTENTION DNA SIGNATURE</h4>
+    </div>
+
+    <div id="patternText" class="pattern-container">
+        <span class="placeholder">Awaiting pattern recognition...</span>
+    </div>
+
+    <div class="dna-stats">
+        <div class="stat-tag type">
+            🎯 DNA Type: <strong id="dnaType">Unknown</strong>
+        </div>
+        <div class="stat-tag efficiency">
+            ⚡ Efficiency: <strong id="dnaEfficiency">0%</strong>
+        </div>
+    </div>
+</div>
+    
 
         <div id="river-area" style="width: 100%; margin-bottom: 40px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                <small style="color: #444; letter-spacing: 2px; text-transform: uppercase; font-size: 10px;">Attention Flow River</small>
-                <small style="color: #222; font-size: 9px;">PRIVATE • LOCAL • OFFLINE</small>
+                <small style="color: #00ff88; letter-spacing: 2px; text-transform: uppercase; font-size: 10px;">Interaction Density Heatmap</small>
+                <small id="heatmap-status" style="color: #333; font-size: 9px;">REAL-TIME SIGNAL STREAM</small>
             </div>
-            <div id="river-container" style="background: #080808; border: 1px solid #111; border-radius: 12px; min-height: 200px; display: flex; align-items: center; justify-content: center;">
-                <span style="color: #333; font-size: 0.9rem;">Select a specific session to visualize the flow pathway...</span>
+            <div id="river-container" style="background: #050505; border: 1px solid #111; border-radius: 12px; height: 120px; padding: 10px;">
+                <canvas id="heatmapRiverChart"></canvas>
             </div>
         </div>
 
@@ -48,7 +74,7 @@
                 <div class="card-header" id="patternTitle" style="color: #00ff88; font-size: 0.8rem; letter-spacing: 1px; margin-bottom: 20px; border-bottom: 1px solid #1a1a1a; padding-bottom: 10px;">
                     ATTENTION INTENSITY (TIME-BASED)
                 </div>
-                <div class="canvas-container" style="position: relative; height: 450px; width: 100%;">
+                <div class="canvas-container" style="position: relative; height: 400px; width: 100%;">
                     <canvas id="mainAnalyticsChart"></canvas>
                 </div>
             </div>
