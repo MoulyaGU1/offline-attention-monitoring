@@ -132,18 +132,27 @@ async function startSession() {
 }
 
 async function endSession() {
-    if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
-    
+    const endBtn = document.getElementById('endBtn'); // Adjust ID to match your HTML
+    if (endBtn.disabled) return; 
+
+    endBtn.disabled = true; // Stop multiple clicks
+    endBtn.innerText = "Saving...";
+
     try {
-        const response = await fetch('/end-session', { method: 'POST' });
-        const report = await response.json();
-        
-        document.getElementById('startBtn').disabled = false;
-        document.getElementById('startBtn').innerText = "START SESSION";
-        document.getElementById('focusState').innerText = "COMPLETE";
-        alert(`Session Ended Successfully!\nStability: ${report.stability_score || 'N/A'}`);
+        const res = await fetch('/end-session', { method: 'POST' });
+        const data = await res.json();
+
+        if (data.status === "success" || data.status === "stored") {
+            // ONLY upload heatmap if session was successfully closed
+            await uploadHeatmap(data.id || data.session_id);
+        } else {
+            console.error("Backend refused end-session:", data.message);
+            endBtn.disabled = false;
+            endBtn.innerText = "End Session";
+        }
     } catch (err) {
-        console.error("End session failed", err);
+        console.error("Network Error:", err);
+        endBtn.disabled = false;
     }
 }
 function uploadHeatmapToDB(sessionId) {
@@ -257,6 +266,47 @@ function renderGravityOffline(gravityData) {
         container.appendChild(item);
     });
 }
+async function loadHistory() {
+    try {
+        const response = await fetch('/api/history');
+        const data = await response.json();
+        const body = document.getElementById('historyBody');
+        
+        // --- THE BRIDGE ---
+        // data is now { "distribution": [...], "raw_history": [...] }
+        // We MUST use data.raw_history to get the list of rows for the table.
+        const sessions = data.raw_history || data; 
+
+        if (!body) return;
+        body.innerHTML = ''; // Clear "Awaiting Data" message
+
+        body.innerHTML = sessions.map(row => {
+            // row[1]: Timestamp, row[3]: Duration, row[7]: Switches, 
+            // row[8]: App Name, row[9]: Density, row[10]: Idle/Recovery
+            const startTime = row[1];
+            const duration = Math.floor(row[3]) || 0;
+            const jumps = row[7] || 0;
+            const topApp = row[8] || "None";
+            const intensity = parseFloat(row[9]) || 1.0;
+            const idleTime = Math.floor(row[10]) || 0;
+
+            return `
+                <tr>
+                    <td>${startTime}</td>
+                    <td>${duration}s</td>
+                    <td style="color: #ffcc00; font-weight: bold;">${idleTime}s</td>
+                    <td>${jumps}</td>
+                    <td><span class="focus-app-name">${topApp}</span></td>
+                    <td><div class="bar-graph-container">${generateTopologyBars(intensity)}</div></td>
+                    <td style="color: #00ff88;">${intensity.toFixed(2)}x</td>
+                </tr>
+            `;
+        }).join('');
+    } catch (err) {
+        console.error("History Load Error:", err);
+    }
+}
+
 
 function updateChartOffline(timeline) {
     // Process timestamps locally without moment.js or external libs
