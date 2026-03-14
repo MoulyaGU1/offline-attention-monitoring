@@ -29,49 +29,75 @@ def register_routes(app, orchestrator):
         """Dedicated route for the Graph Selection & Pattern Analysis."""
         return render_template("analytics.html")
 
-    @app.route("/history")
-    def history_page():
-        """Fetches all sessions and safely converts Heatmap BLOBs to viewable URLs."""
-        db_path = "attention_history.db"
+    @app.route('/api/history')
+    def get_history():
+        session_id = request.args.get('id')
+        db_path = r"C:\Users\lenovo\OneDrive\Documents\Desktop\Moulya\attention-mapping-tool\attention_history.db"
+
         conn = sqlite3.connect(db_path)
         conn.row_factory = sqlite3.Row 
         cursor = conn.cursor()
-        
-        try:
-            cursor.execute("SELECT * FROM session_history ORDER BY id DESC")
-            rows = cursor.fetchall()
-            
-            sessions = []
-            for row in rows:
-                # Convert row to dictionary for easier key checking
-                session_data = dict(row)
-                
-                # --- MERGED SAFE CHECK ---
-                # 1. Checks if column exists in the row
-                # 2. Checks if the data inside is not None
-                has_blob = 'heatmap_blob' in session_data and session_data['heatmap_blob'] is not None
-                
-                if has_blob:
-                    try:
-                        # Convert raw binary to displayable Base64 string
-                        encoded_img = base64.b64encode(row['heatmap_blob']).decode('utf-8')
-                        session_data['heatmap_url'] = f"data:image/png;base64,{encoded_img}"
-                    except Exception as e:
-                        print(f"[*] Error encoding blob for session {session_data.get('id')}: {e}")
-                        session_data['heatmap_url'] = None
-                else:
-                    session_data['heatmap_url'] = None
-                    
-                sessions.append(session_data)
-                
-            return render_template('history.html', sessions=sessions)
-            
-        except Exception as e:
-            print(f"[!] Database Error in history_page: {e}")
-            return render_template('history.html', sessions=[], error="Could not load history.")
-        finally:
-            conn.close()
 
+        try:
+            cursor.execute('SELECT * FROM session_history ORDER BY id DESC')
+            rows = cursor.fetchall()
+        
+            processed_history = []
+            session_dropdown_list = []
+
+            for r in rows:
+                d = dict(r)
+                session_dropdown_list.append({
+                    "id": d.get('id'),
+                    "time": d.get('start_time') or d.get('start')
+                })
+
+                if d.get('heatmap_blob'):
+                    try:
+                        encoded = base64.b64encode(d['heatmap_blob']).decode('utf-8')
+                        d['heatmap_url'] = f"data:image/png;base64,{encoded}"
+                    except Exception:
+                        d['heatmap_url'] = None
+                else:
+                    d['heatmap_url'] = None
+            
+                if 'heatmap_blob' in d: del d['heatmap_blob']
+                processed_history.append(d)
+
+        # --- DYNAMIC DISTRIBUTION LOGIC ---
+            dist_data = []
+            selected = None
+
+            if session_id and session_id != 'all':
+            # VIEW 1: Specific Session -> Show app breakdown for THIS session
+                selected = next((s for s in processed_history if str(s['id']) == str(session_id)), None)
+                if selected:
+                # If your DB only stores 'top_app', we show that. 
+                # If you have multiple apps per session, you'd iterate here.
+                    dist_data = [{"app_name": selected.get('top_app', 'Unknown'), "total_duration": selected.get('duration', 0)}]
+            else:
+            # VIEW 2: All-Time Overview -> Show comparison of ALL sessions
+            # This makes the graph change significantly when switching from 'All' to a 'Specific ID'
+                dist_data = [
+                    {
+                        "app_name": f"Sess #{s['id']}", 
+                        "total_duration": s.get('duration', 0)
+                    } for s in processed_history
+                ]
+
+            return jsonify({
+                "status": "success",
+                "distribution": dist_data,
+                "raw_history": processed_history,
+                "session_list": session_dropdown_list,
+                "selected_session": selected
+            })
+
+        except Exception as e:
+            print(f"SQL Error: {e}")
+            return jsonify({"status": "error", "message": str(e)}), 500
+        finally:
+            if conn: conn.close()
     @app.route('/engage_history')
     def engage_history_page():
         return render_template('history.html') 
@@ -107,78 +133,17 @@ def register_routes(app, orchestrator):
 
     # --- 3. HEATMAP & ANALYTICS API ---
 
-    
-    @app.route('/api/history')
-    def get_history():
-        session_id = request.args.get('id')
-        db_path = r"C:\Users\lenovo\OneDrive\Documents\Desktop\Moulya\attention-mapping-tool\attention_history.db"
-
-        conn = sqlite3.connect(db_path)
-        conn.row_factory = sqlite3.Row  
-        cursor = conn.cursor()
-
+    @app.route("/history")
+    def history_page():
+        """Renders the HTML page for session history."""
         try:
-        # 1. Fetch Raw History (Keeping your existing logic)
-            cursor.execute('SELECT * FROM session_history ORDER BY id DESC')
-            rows = cursor.fetchall()
-
-        # 2. Existing Distribution/Summary Logic
-            if session_id and session_id != 'all':
-                cursor.execute('SELECT * FROM session_history WHERE id = ?', (session_id,))
-                graph_rows = cursor.fetchall()
-                dist_data = [{"app_name": r[8], "total_duration": r[3]} for r in graph_rows]
-            else:
-                cursor.execute('SELECT * FROM session_history')
-                all_data = cursor.fetchall()
-                summary = {}
-                for r in all_data:
-                    name = r[8] if r[8] else "Unknown"
-                    duration = r[3] if r[3] else 0
-                    summary[name] = summary.get(name, 0) + duration
-                dist_data = [{"app_name": k, "total_duration": v} for k, v in summary.items()]
-                dist_data = sorted(dist_data, key=lambda x: x['total_duration'], reverse=True)
-
-        # --- NEW: ADDING COMPLIANCE DATA (Heatmap & States) ---
-        # We transform the existing 'rows' to include Mandatory Features
-            formatted_raw = []
-            heatmap_data = []
-            for r in rows:
-            # Interaction density (Keys + Clicks)
-                density = (r[4] if r[4] else 0) + (r[5] if r[5] else 0)
-            
-            # Map Attention State (Constraint: No Judgment, just state identification)
-                state = "DEEP_FOCUS"
-                if (r[7] if r[7] else 0) > 2: state = "FRAGMENTED" # Based on app_jumps
-                if density == 0: state = "IDLE"
-
-                formatted_raw.append({
-                    "id": r[0],
-                    "time": r[1],
-                    "duration": r[3],
-                    "interaction_density": density,
-                    "fragmentation_index": r[7], # app_jumps
-                    "attention_state": state,
-                    "top_app": r[8]
-                })
-            
-            # Populate Heatmap (Density over time)
-                heatmap_data.append({"t": r[1], "v": density})
-
-            conn.close()
-
-        # Merged Return: Existing structure + New Compliance keys
-            return jsonify({
-                "distribution": dist_data,
-                "raw_history": [list(row) for row in rows], # Keeping your original format
-                "formatted_history": formatted_raw,         # New mandatory feature data
-                "heatmap": heatmap_data[::-1],              # Reversed for chronological chart
-                "session_list": [{"id": r[0], "time": r[1]} for r in rows]
-            })
-
+        # We don't need to do the heavy lifting here because 
+        # the frontend JS (loadHistory) will call /api/history to get the data.
+            return render_template("history.html")
         except Exception as e:
-            if conn: conn.close()
-            print(f"SQL Error: {e}")
-            return jsonify({"error": str(e)}), 500
+            return f"Error loading history page: {e}", 500
+   
+        
 
     @app.route('/api/start_lock', methods=['POST'])
     def start_lock():
@@ -243,22 +208,22 @@ def register_routes(app, orchestrator):
     @app.route('/api/store_heatmap_blob', methods=['POST'])
     def store_heatmap_blob():
         try:
-        # Read the raw binary from the browser's request
-            image_binary = request.files['image'].read()
+        # 1. Get binary image and session ID from the request
+            image_bytes = request.files['image'].read()
             session_id = request.form.get('session_id')
 
-            conn = sqlite3.connect('attention_history.db')
+            db_path = "attention_history.db"
+            conn = sqlite3.connect(db_path)
             cursor = conn.cursor()
         
-        # Link the image to the session row created in Step 1
-            query = "UPDATE session_history SET heatmap_blob = ? WHERE id = ?"
-            cursor.execute(query, (sqlite3.Binary(image_binary), session_id))
+        # 2. Store as binary (sqlite3.Binary handles the conversion)
+            cursor.execute("UPDATE session_history SET heatmap_blob = ? WHERE id = ?", 
+                       (sqlite3.Binary(image_bytes), session_id))
         
             conn.commit()
             conn.close()
             return jsonify({"status": "success"})
         except Exception as e:
-            print(f"[-] Heatmap Storage Error: {e}")
             return jsonify({"status": "error", "message": str(e)}), 500
     def end_session(self):
         """Finalizes the session and returns the ID for the Heatmap."""

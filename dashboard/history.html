@@ -49,53 +49,32 @@
 {% endfor %}
 <script>
 async function loadHistory() {
-    try {
-        console.log("Attempting to fetch history from local node...");
-        const response = await fetch('/api/history');
-        const data = await response.json();
-        
-        const body = document.getElementById('historyBody');
-        if (!body) {
-            console.error("Error: historyBody element not found in DOM.");
-            return;
-        }
+    const response = await fetch('/api/history');
+    const data = await response.json();
+    const body = document.getElementById('historyBody');
+    
+    // CRITICAL: Access the 'raw_history' key
+    const sessions = data.raw_history; 
 
-        // --- THE CRITICAL BRIDGE ---
-        // We look for the "raw_history" key from your merged Python response
-        const sessions = data.raw_history || data;
-
-        if (!Array.isArray(sessions)) {
-            console.warn("No session array found. Data received:", data);
-            return;
-        }
-
-        body.innerHTML = sessions.map(row => {
-            // MATCHING YOUR SQL COLUMN SCHEMA (Index 0-10)
-            const startTime = row[1];
-            const duration  = Math.floor(row[3]) || 0;
-            const jumps     = row[7] || 0;
-            const topApp    = row[8] || "None";
-            const intensity = parseFloat(row[9]) || 1.0;
-            const idleTime  = Math.floor(row[10]) || 0;
-
-            return `
-                <tr>
-                    <td>${startTime}</td>
-                    <td>${duration}s</td>
-                    <td style="color: #ffcc00; font-weight: bold;">${idleTime}s</td>
-                    <td>${jumps}</td>
-                    <td><span class="focus-app-name">${topApp}</span></td>
-                    <td><div class="bar-graph-container">${generateTopologyBars(intensity)}</div></td>
-                    <td style="color: #00ff88;">${intensity.toFixed(2)}x</td>
-                </tr>
-            `;
-        }).join('');
-        
-        console.log("History table populated successfully.");
-    } catch (err) {
-        console.error("History Load Error:", err);
-    }
+    body.innerHTML = sessions.map(session => {
+        return `
+            <tr>
+                <td>${session.start_time || 'N/A'}</td>
+                <td>${Math.floor(session.duration || 0)}s</td>
+                <td style="color: #ffcc00;">${Math.floor(session.idle_duration || 0)}s</td>
+                <td>${session.app_jumps || 0}</td>
+                <td><span class="focus-app-name">${session.top_app || 'None'}</span></td>
+                <td>
+                    ${session.heatmap_url 
+                        ? `<img src="${session.heatmap_url}" style="width:80px; border:1px solid #00ff88; border-radius:4px;">` 
+                        : generateTopologyBars(1)}
+                </td>
+                <td style="color: #00ff88;">1.00x</td>
+            </tr>
+        `;
+    }).join('');
 }
+
 async function loadEngageHistory() {
     const response = await fetch('/api/engage/history');
     const data = await response.json();

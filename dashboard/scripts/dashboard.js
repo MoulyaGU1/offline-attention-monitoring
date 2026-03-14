@@ -132,27 +132,18 @@ async function startSession() {
 }
 
 async function endSession() {
-    const endBtn = document.getElementById('endBtn'); // Adjust ID to match your HTML
-    if (endBtn.disabled) return; 
-
-    endBtn.disabled = true; // Stop multiple clicks
-    endBtn.innerText = "Saving...";
-
+    if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+    
     try {
-        const res = await fetch('/end-session', { method: 'POST' });
-        const data = await res.json();
-
-        if (data.status === "success" || data.status === "stored") {
-            // ONLY upload heatmap if session was successfully closed
-            await uploadHeatmap(data.id || data.session_id);
-        } else {
-            console.error("Backend refused end-session:", data.message);
-            endBtn.disabled = false;
-            endBtn.innerText = "End Session";
-        }
+        const response = await fetch('/end-session', { method: 'POST' });
+        const report = await response.json();
+        
+        document.getElementById('startBtn').disabled = false;
+        document.getElementById('startBtn').innerText = "START SESSION";
+        document.getElementById('focusState').innerText = "COMPLETE";
+        alert(`Session Ended Successfully!\nStability: ${report.stability_score || 'N/A'}`);
     } catch (err) {
-        console.error("Network Error:", err);
-        endBtn.disabled = false;
+        console.error("End session failed", err);
     }
 }
 function uploadHeatmapToDB(sessionId) {

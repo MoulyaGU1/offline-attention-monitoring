@@ -119,3 +119,11 @@ async function renderCharts() {
 }
 
 renderCharts();
+function renderHeatmap(sessionData) {
+    const container = document.querySelector('.interaction-density-heatmap');
+    if (sessionData && sessionData.heatmap_url) {
+        container.innerHTML = `<img src="${sessionData.heatmap_url}" style="width:100%; height:100%; object-fit:contain; border: 1px solid #00ff88; box-shadow: 0 0 15px rgba(0,255,136,0.2);">`;
+    } else {
+        container.innerHTML = `<p style="color:#444; padding-top:100px; text-align:center;">No heatmap recorded for this session.</p>`;
+    }
+}
